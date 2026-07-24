@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Droid Tycoon — Stat Tracking</title>
+<style>
+  :root {
+    --bg: #0b0f1a;
+    --panel: #141a2b;
+    --panel-2: #1b2336;
+    --border: #2a3654;
+    --text: #e6ecff;
+    --muted: #8b97b8;
+    --accent: #5b8cff;
+    --accent-2: #7c5cff;
+    --good: #36d399;
+    --shadow: 0 8px 30px rgba(0,0,0,.35);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: radial-gradient(1200px 600px at 80% -10%, #1a2138 0%, var(--bg) 60%);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  header {
+    display: flex; align-items: center; gap: 14px;
+    padding: 18px 28px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(20,26,43,.7);
+    backdrop-filter: blur(6px);
+  }
+  header .logo {
+    width: 38px; height: 38px; border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    display: grid; place-items: center; font-size: 20px; box-shadow: var(--shadow);
+  }
+  header h1 { font-size: 18px; margin: 0; letter-spacing: .3px; }
+  header .sub { color: var(--muted); font-size: 13px; }
+  header a.back { margin-left: auto; color: var(--muted); font-size: 13px; text-decoration: none; }
+  header a.back:hover { color: var(--text); }
+
+  main { max-width: 980px; margin: 0 auto; padding: 28px; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 22px;
+    box-shadow: var(--shadow);
+  }
+  .card + .card { margin-top: 22px; }
+  .card h2 { margin: 0 0 4px; font-size: 16px; }
+  .card p.hint { margin: 0 0 18px; color: var(--muted); font-size: 13px; }
+
+  .stats-inputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-bottom: 16px; }
+  .field { display: flex; flex-direction: column; gap: 7px; }
+  .field label { font-size: 13px; color: var(--muted); font-weight: 600; letter-spacing: .2px; }
+  .field input {
+    width: 100%; padding: 11px 12px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--panel-2); color: var(--text); font-size: 14px;
+  }
+  .field input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(91,140,255,.18); outline: none; }
+
+  .controls { display: flex; gap: 12px; margin-top: 18px; align-items: center; flex-wrap: wrap; }
+  button {
+    border: none; border-radius: 10px; padding: 11px 18px; font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: transform .05s, filter .15s; color: #fff;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  }
+  button:hover { filter: brightness(1.07); }
+  button:active { transform: translateY(1px); }
+  button.secondary { background: var(--panel-2); border: 1px solid var(--border); color: var(--text); }
+  .status { color: var(--muted); font-size: 13px; }
+  .error { color: #ff7a90; font-size: 13px; }
+
+  .stats-summary, .stats-rate {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px;
+    margin-bottom: 16px;
+  }
+  .stat { background: var(--panel-2); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .stat-label { font-size: 12px; color: var(--muted); font-weight: 600; letter-spacing: .3px; text-transform: uppercase; }
+  .stat-value { font-size: 28px; font-weight: 800; margin-top: 4px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+  .results-head { display: flex; align-items: baseline; justify-content: space-between; margin: 4px 0 16px; }
+  .results-head .label { font-size: 15px; font-weight: 700; }
+  .results-head .tag {
+    font-size: 12px; color: var(--muted);
+    border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px;
+  }
+  .stats-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .stats-table th, .stats-table td {
+    text-align: right; padding: 9px 12px; border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .stats-table th:first-child, .stats-table td:first-child { text-align: center; color: var(--muted); }
+  .stats-table thead th {
+    color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em;
+    border-bottom: 1px solid var(--accent);
+  }
+  .stats-table tbody tr:hover { background: rgba(91,140,255,.06); }
+  .placeholder { color: var(--muted); font-size: 14px; padding: 22px 4px; text-align: center; border: 1px dashed var(--border); border-radius: 12px; }
+  .empty { color: var(--muted); font-size: 14px; padding: 10px 2px; }
+
+  .log-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .log-table th, .log-table td { text-align: right; padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .log-table th:first-child, .log-table td:first-child { text-align: center; color: var(--muted); }
+  .log-table thead th { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+  .rate-bad { color: #ffb86b; font-size: 12px; }
+  footer { text-align: center; color: var(--muted); font-size: 12px; padding: 24px; }
+</style>
+</head>
+<body>
+  <header>
+    <div class="logo">&#128202;</div>
+    <div>
+      <h1>Droid Tycoon — Stat Tracking</h1>
+      <div class="sub">Track your grind: credits, tokens, and when the cycle finishes</div>
+    </div>
+    <a class="back" href="/index.html">&larr; Back to Rebirth Tracker</a>
+  </header>
+
+  <main>
+    <!-- 1. INPUTS ------------------------------------------------------- -->
+    <section class="card">
+      <h2>Player stats input</h2>
+      <p class="hint">Enter the variables you track in-game. Values are validated and saved locally in your browser (localStorage) — reloaded every time you open this page, with no server or network needed. Use <strong>Export data</strong> to save a JSON backup file, and <strong>Import data</strong> to restore one. The <strong>Log snapshot</strong> button records your current numbers so the page can measure your real credits/min and tokens/min over time.</p>
+      <div class="stats-inputs">
+        <div class="field">
+          <label for="statSR">Super Rebirth Cycle</label>
+          <input id="statSR" type="number" min="1" step="1" placeholder="e.g. 1" />
+        </div>
+        <div class="field">
+          <label for="statRB">Current Rebirth</label>
+          <input id="statRB" type="number" min="1" step="1" placeholder="e.g. 1" />
+        </div>
+        <div class="field">
+          <label for="statEarn">Offline earnings (b/hr)</label>
+          <input id="statEarn" type="number" min="0" step="any" placeholder="e.g. 1.25" />
+        </div>
+        <div class="field">
+          <label for="statCredits">Current credits</label>
+          <input id="statCredits" type="number" min="0" step="any" placeholder="e.g. 0" />
+        </div>
+        <div class="field">
+          <label for="statTokens">Current upgrade tokens</label>
+          <input id="statTokens" type="number" min="0" step="any" placeholder="e.g. 0" />
+        </div>
+      </div>
+      <div class="controls">
+        <button id="statSaveBtn">Save stats</button>
+        <button id="statResetBtn" class="secondary">Reset to defaults</button>
+        <button id="snapshotBtn" class="secondary">Log snapshot</button>
+        <span class="status" id="statStatus"></span>
+      </div>
+    </section>
+
+    <!-- 2. COMPUTED VIEW ------------------------------------------------ -->
+    <section class="card">
+      <h2>Computed statistics</h2>
+      <p class="hint">Live derived numbers. <em>Projected</em> rate comes from your offline earnings (b/hr → cr/min). <em>Measured</em> rate comes from your snapshot log once at least two snapshots exist for the current cycle.</p>
+      <div id="statsComputed">
+        <div class="placeholder">Loading computed stats…</div>
+      </div>
+    </section>
+
+    <!-- 3. MEASURED RATES ---------------------------------------------- -->
+    <section class="card">
+      <h2>Measured rates (from snapshot log)</h2>
+      <p class="hint">Average change per minute, computed between the earliest and latest snapshots that share the same Super Rebirth cycle (SR) or the same (SR, Rebirth). Requires at least two snapshots in a cycle before a rate is shown.</p>
+      <div id="measuredBox">
+        <div class="placeholder">Loading measured rates…</div>
+      </div>
+    </section>
+
+    <!-- 4. SNAPSHOT LOG ------------------------------------------------ -->
+    <section class="card">
+      <h2>Snapshot log</h2>
+      <p class="hint">Every <strong>Log snapshot</strong> click appends a row here. Use this history to watch your credits and tokens climb.</p>
+      <div id="logBox">
+        <div class="placeholder">No snapshots yet.</div>
+      </div>
+      <div class="controls">
+        <button id="clearLogBtn" class="secondary">Clear log</button>
+        <button id="exportBtn" class="secondary">Export data…</button>
+        <button id="importBtn" class="secondary">Import data…</button>
+        <input id="importFile" type="file" accept="application/json,.json" style="display:none" />
+        <span class="status" id="logStatus"></span>
+      </div>
+    </section>
+  </main>
+
+  <footer>Droid Tycoon Stat Tracking · saved in your browser (localStorage) · export/import JSON for file backups</footer>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const statStatus = $("statStatus");
+
+  const STAT_FIELDS = [
+    { el: "statSR",      field: "currentSuperRebirthCycle", kind: "integer", empty: 1 },
+    { el: "statRB",      field: "currentRebirth",           kind: "integer", empty: 1 },
+    { el: "statEarn",    field: "offlineEarningsBhr",       kind: "number",  empty: 0 },
+    { el: "statCredits", field: "currentCredits",           kind: "number",  empty: 0 },
+    { el: "statTokens",  field: "currentUpgradeTokens",     kind: "number",  empty: 0 },
+  ];
+  STAT_FIELDS.forEach((f) => { f.input = $(f.el); });
+
+  // ===== Local persistence + in-browser compute (no server / file:// safe) =====
+  // The page is designed to be opened directly from disk (file://). It therefore
+  // keeps NO network dependencies: stats + snapshot log live in localStorage and
+  // every derived number is computed client-side from the same pure formulas the
+  // server uses (stat_view.js / stat_log.js). The rebirth cost table is static
+  // reference data, so it is embedded below.
+
+  const LS_STATS = "droidTycoon.stats.v1";
+  const LS_LOG   = "droidTycoon.statLog.v1";
+  const MIN_SNAPSHOTS = 2;
+
+  // Static rebirth cost table (mirrors `rebirth_cost` in droid_tycoon.db).
+  const COST_TABLE = [
+    { rebirth: 0,  credits: 10000,            nova: null },
+    { rebirth: 1,  credits: 150000,           nova: null },
+    { rebirth: 2,  credits: 975000,           nova: null },
+    { rebirth: 3,  credits: 2950000,          nova: null },
+    { rebirth: 4,  credits: 5350000,          nova: null },
+    { rebirth: 5,  credits: 9850000,          nova: null },
+    { rebirth: 6,  credits: 14500000,         nova: null },
+    { rebirth: 7,  credits: 36000000,         nova: null },
+    { rebirth: 8,  credits: 89000000,         nova: null },
+    { rebirth: 9,  credits: 220000000,        nova: null },
+    { rebirth: 10, credits: 550000000,        nova: null },
+    { rebirth: 11, credits: 1360000000,       nova: null },
+    { rebirth: 12, credits: 3400000000,       nova: 11 },
+    { rebirth: 13, credits: 8450000000,       nova: 16 },
+    { rebirth: 14, credits: 21000000000,      nova: 22 },
+    { rebirth: 15, credits: 21000000000,      nova: 29 },
+    { rebirth: 16, credits: 52000000000,      nova: 37 },
+    { rebirth: 17, credits: 130000000000,     nova: 46 },
+    { rebirth: 18, credits: 325000000000,     nova: 56 },
+    { rebirth: 19, credits: 810000000000,     nova: 67 },
+    { rebirth: 20, credits: 2000000000000,    nova: 79 },
+    { rebirth: 21, credits: 3000000000000,    nova: 92 },
+    { rebirth: 22, credits: 4500000000000,    nova: 106 },
+    { rebirth: 23, credits: 6000000000000,    nova: 121 },
+    { rebirth: 24, credits: 9000000000000,    nova: 137 },
+    { rebirth: 25, credits: 13500000000000,   nova: 154 },
+    { rebirth: 26, credits: 21000000000000,   nova: 172 },
+    { rebirth: 27, credits: 32000000000000,   nova: 191 },
+  ];
+
+  // ---- pure compute (ported from stat_view.js) ----
+  const MINUTES_PER_DAY = 1440;
+  function bhrToCreditsPerMin(bhr) { return (bhr * 1e9) / 60; }
+  function cumulativeNovaCurve(upToRebirth) {
+    const out = [];
+    if (upToRebirth < 12) return out;
+    let prevNova = 11, prevIncrement = 5;
+    out.push({ rebirth: 12, nova: 11, increment: 0 });
+    if (upToRebirth >= 13) out.push({ rebirth: 13, nova: 16, increment: 5 });
+    let curNova = 16, curIncrement = 6;
+    for (let r = 14; r <= upToRebirth; r++) {
+      curNova += curIncrement;
+      out.push({ rebirth: r, nova: curNova, increment: curIncrement });
+      curIncrement += 1;
+    }
+    return out;
+  }
+  function buildDashboard(stats, costTable) {
+    const ratePerMin = bhrToCreditsPerMin(stats.offlineEarningsBhr);
+    const rows = [];
+    const startRb = stats.currentRebirth;
+    for (const row of costTable) {
+      if (row.rebirth < startRb) continue;
+      const creditsRequired = row.credits;
+      const nova = row.nova == null ? null : row.nova;
+      let etcDays = null, etcHours = null;
+      if (ratePerMin > 0) {
+        const minutes = (creditsRequired - stats.currentCredits) / ratePerMin;
+        etcDays = minutes > 0 ? minutes / MINUTES_PER_DAY : 0;
+        etcHours = minutes > 0 ? minutes / 60 : 0;
+      }
+      rows.push({ rebirth: row.rebirth, creditsRequired, nova, ratePerMin, etcDays, etcHours });
+    }
+    return rows;
+  }
+
+  // ---- pure compute (ported from stat_log.js) ----
+  function groupByCycle(log, kind) {
+    const groups = new Map();
+    for (const snap of log) {
+      const key = kind === "sr"
+        ? `SR${snap.currentSuperRebirthCycle}`
+        : `SR${snap.currentSuperRebirthCycle}-R${snap.currentRebirth}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(snap);
+    }
+    for (const arr of groups.values()) arr.sort((a, b) => a.ts - b.ts);
+    return groups;
+  }
+  function measuredRatesForGroup(snaps) {
+    const first = snaps[0], last = snaps[snaps.length - 1];
+    const timeMinutes = (last.ts - first.ts) / 60000;
+    const enough = snaps.length >= MIN_SNAPSHOTS && timeMinutes > 0;
+    const creditsDelta = last.currentCredits - first.currentCredits;
+    const tokensDelta = last.currentUpgradeTokens - first.currentUpgradeTokens;
+    return {
+      count: snaps.length,
+      enough,
+      timeMinutes: enough ? timeMinutes : null,
+      creditsDelta: enough ? creditsDelta : null,
+      tokensDelta: enough ? tokensDelta : null,
+      creditsPerMin: enough ? creditsDelta / timeMinutes : null,
+      tokensPerMin: enough ? tokensDelta / timeMinutes : null,
+      firstTs: first.ts, lastTs: last.ts,
+      firstCredits: first.currentCredits, lastCredits: last.currentCredits,
+      firstTokens: first.currentUpgradeTokens, lastTokens: last.currentUpgradeTokens,
+    };
+  }
+  function computeMeasuredRates(log, opts) {
+    const currentSr = opts && opts.currentSr;
+    const currentRb = opts && opts.currentRb;
+    const kind = (opts && opts.kind) || "both";
+    function forKind(k) {
+      const groupsMap = groupByCycle(log, k);
+      const groups = [];
+      let current = null;
+      for (const [key, snaps] of groupsMap.entries()) {
+        const m = measuredRatesForGroup(snaps);
+        m.key = key;
+        groups.push(m);
+        if (k === "sr") {
+          if (currentSr != null && key === `SR${currentSr}`) current = m;
+        } else {
+          if (currentSr != null && currentRb != null && key === `SR${currentSr}-R${currentRb}`) current = m;
+        }
+      }
+      groups.sort((a, b) => b.lastTs - a.lastTs);
+      return { current, groups };
+    }
+    const out = {};
+    if (kind === "sr" || kind === "both") out.sr = forKind("sr");
+    if (kind === "rb" || kind === "both") out.rb = forKind("rb");
+    return out;
+  }
+
+  // ---- validation (mirrors stat_tracking.js / server.js) ----
+  const FIELD_SPECS = {
+    currentSuperRebirthCycle: { type: "integer", min: 1 },
+    currentRebirth:           { type: "integer", min: 1 },
+    offlineEarningsBhr:       { type: "number",  min: 0 },
+    currentCredits:           { type: "number",  min: 0 },
+    currentUpgradeTokens:     { type: "number",  min: 0 },
+  };
+  const FIELD_NAMES = Object.keys(FIELD_SPECS);
+  function validateForSave(candidate) {
+    const base = loadStatsLocal();
+    const merged0 = { ...base, ...candidate };
+    const out = {}; const errors = [];
+    for (const f of FIELD_NAMES) {
+      let v = merged0[f];
+      const spec = FIELD_SPECS[f];
+      if (typeof v === "string") {
+        if (spec.type === "integer") { if (/^-?\d+$/.test(v)) v = parseInt(v, 10); }
+        else { if (v.trim() !== "" && !Number.isNaN(Number(v))) v = Number(v); }
+      }
+      if (spec.type === "integer") {
+        if (typeof v !== "number" || !Number.isInteger(v)) { errors.push(`${f} must be an integer, got ${JSON.stringify(merged0[f])}`); continue; }
+        if (v < spec.min) { errors.push(`${f} must be >= ${spec.min}, got ${v}`); continue; }
+      } else {
+        if (typeof v !== "number" || !Number.isFinite(v)) { errors.push(`${f} must be a finite number, got ${JSON.stringify(merged0[f])}`); continue; }
+        if (v < spec.min) { errors.push(`${f} must be >= ${spec.min}, got ${v}`); continue; }
+      }
+      out[f] = v;
+    }
+    return { errors, merged: out };
+  }
+
+  // ---- localStorage I/O (file://-safe; no server, no CORS) ----
+  function readLocal(key, fallback) {
+    try { const raw = localStorage.getItem(key); return raw == null ? fallback : JSON.parse(raw); }
+    catch (e) { return fallback; }
+  }
+  function writeLocal(key, val) {
+    try { localStorage.setItem(key, JSON.stringify(val)); return true; }
+    catch (e) { return false; }
+  }
+  function defaultStats() {
+    return { currentSuperRebirthCycle: 1, currentRebirth: 1, offlineEarningsBhr: 0, currentCredits: 0, currentUpgradeTokens: 0 };
+  }
+  function loadStatsLocal() { return { ...defaultStats(), ...(readLocal(LS_STATS, null) || {}) }; }
+  function saveStatsLocal(stats) { writeLocal(LS_STATS, stats); return stats; }
+  function loadLogLocal() { const l = readLocal(LS_LOG, null); return Array.isArray(l) ? l : []; }
+  function appendSnapshotLocal(snap) {
+    const log = loadLogLocal();
+    log.push({ ...snap, ts: Date.now() });
+    writeLocal(LS_LOG, log);
+    return log;
+  }
+  function clearLogLocal() { try { localStorage.removeItem(LS_LOG); } catch (e) {} return []; }
+
+  // ---- export / import to a real file (offline backup) ----
+  function downloadJSON(filename, obj) {
+    const blob = new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
+  function exportData() {
+    const payload = { stats: loadStatsLocal(), log: loadLogLocal(), exportedAt: Date.now() };
+    downloadJSON("droid_tycoon_export.json", payload);
+    statStatus.className = "status";
+    statStatus.textContent = "Exported stats + log to droid_tycoon_export.json";
+  }
+  function importData(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const obj = JSON.parse(reader.result);
+        if (obj.stats) {
+          const { errors, merged } = validateForSave(obj.stats);
+          if (errors.length) throw new Error(errors[0]);
+          saveStatsLocal(merged);
+        }
+        if (Array.isArray(obj.log)) writeLocal(LS_LOG, obj.log);
+        fillStatInputs(loadStatsLocal());
+        renderComputed(); loadLog(); loadMeasured();
+        statStatus.className = "status";
+        statStatus.textContent = "Imported data successfully.";
+      } catch (err) {
+        statStatus.className = "error";
+        statStatus.textContent = "Import failed: " + err.message;
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  }
+
+  function fmt(n, d = 0) {
+    if (n == null || !isFinite(n)) return "—";
+    return Number(n).toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+  }
+  function fmtRate(n, d = 2) {
+    if (n == null || !isFinite(n)) return "—";
+    return Number(n).toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+  }
+  function fmtDuration(minutes) {
+    if (minutes == null || !isFinite(minutes)) return "—";
+    if (minutes <= 0) return "0";
+    const days = Math.floor(minutes / 1440);
+    const hrs = Math.floor((minutes % 1440) / 60);
+    const mins = Math.floor(minutes % 60);
+    const parts = [];
+    if (days) parts.push(days + "d");
+    if (hrs || days) parts.push(hrs + "h");
+    parts.push(mins + "m");
+    return parts.join(" ");
+  }
+  function fmtTime(ts) {
+    if (!ts) return "—";
+    const d = new Date(ts);
+    return d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  }
+
+  function fillStatInputs(stats) {
+    STAT_FIELDS.forEach((f) => {
+      f.input.value = stats && stats[f.field] != null ? stats[f.field] : "";
+    });
+  }
+
+  function loadStats() {
+    try {
+      fillStatInputs(loadStatsLocal());
+      statStatus.className = "status";
+      statStatus.textContent = "Loaded saved stats (stored locally in this browser).";
+    } catch (e) {
+      statStatus.className = "error";
+      statStatus.textContent = "Could not load saved stats: " + e.message;
+    }
+  }
+
+  function saveStats() {
+    const payload = {};
+    for (const f of STAT_FIELDS) {
+      const raw = f.input.value;
+      if (raw === "" || raw === null || raw === undefined) continue;
+      payload[f.field] = raw; // keep as string; validateForSave coerces
+    }
+    statStatus.className = "status";
+    statStatus.textContent = "Saving…";
+    try {
+      const { errors, merged } = validateForSave(payload);
+      if (errors.length) {
+        statStatus.className = "error";
+        statStatus.textContent = errors[0];
+        return;
+      }
+      const s = saveStatsLocal(merged);
+      fillStatInputs(s);
+      statStatus.className = "status";
+      statStatus.textContent =
+        `Saved — SR${s.currentSuperRebirthCycle}, R${s.currentRebirth}, ` +
+        `${s.offlineEarningsBhr} b/hr, ${fmt(s.currentCredits)} credits, ${fmt(s.currentUpgradeTokens)} tokens.`;
+      renderComputed();
+      loadLog();
+    } catch (e) {
+      statStatus.className = "error";
+      statStatus.textContent = "Save failed: " + e.message;
+    }
+  }
+
+  function resetStats() {
+    STAT_FIELDS.forEach((f) => { f.input.value = ""; });
+    statStatus.className = "status";
+    statStatus.textContent = "Cleared inputs — press Save stats to reset to defaults.";
+  }
+
+  // --- Log a snapshot from the current inputs -------------------------
+  function logSnapshot() {
+    const payload = {};
+    for (const f of STAT_FIELDS) {
+      const raw = f.input.value;
+      if (raw === "" || raw === null || raw === undefined) {
+        statStatus.className = "error";
+        statStatus.textContent = "Fill in all five fields before logging a snapshot.";
+        return;
+      }
+      payload[f.field] = f.kind === "integer" ? parseInt(raw, 10) : Number(raw);
+    }
+    statStatus.className = "status";
+    statStatus.textContent = "Logging snapshot…";
+    try {
+      // Validate the snapshot's cycle/credit fields (mirrors server.js).
+      const specs = FIELD_SPECS;
+      for (const f of ["currentSuperRebirthCycle", "currentRebirth", "currentCredits", "currentUpgradeTokens"]) {
+        const v = payload[f];
+        const spec = specs[f];
+        if (typeof v !== "number" || (spec.type === "integer" ? !Number.isInteger(v) : !Number.isFinite(v)) || v < spec.min) {
+          statStatus.className = "error";
+          statStatus.textContent = `${f} must be a number >= ${spec.min}`;
+          return;
+        }
+      }
+      const log = appendSnapshotLocal(payload);
+      statStatus.className = "status";
+      statStatus.textContent = `Snapshot logged (${log.length} total).`;
+      loadLog();
+      loadMeasured();
+    } catch (e) {
+      statStatus.className = "error";
+      statStatus.textContent = "Snapshot failed: " + e.message;
+    }
+  }
+
+  // --- Computed view (credits remaining, ETA, dashboard) --------------
+  function renderComputed() {
+    const box = $("statsComputed");
+    try {
+      const s = loadStatsLocal();
+      const ratePerMin = bhrToCreditsPerMin(s.offlineEarningsBhr);
+      const costTable = COST_TABLE;
+      const dashboard = buildDashboard(s, costTable);
+      const novaCurve = cumulativeNovaCurve(Math.max(s.currentRebirth, costTable.length ? costTable[costTable.length - 1].rebirth : 28));
+      const nowNova = novaCurve.length ? novaCurve[novaCurve.length - 1].nova : 0;
+
+      const currentCostRow = costTable.find((r) => r.rebirth === s.currentRebirth);
+      const finalCostRow = costTable.length ? costTable[costTable.length - 1] : null;
+      const creditsRemainingCycle = currentCostRow ? Math.max(0, currentCostRow.credits - s.currentCredits) : null;
+      const creditsRemainingAll = finalCostRow ? Math.max(0, finalCostRow.credits - s.currentCredits) : null;
+
+      let measured = null, measuredLogCount = 0;
+      try {
+        const log = loadLogLocal();
+        measuredLogCount = log.length;
+        measured = computeMeasuredRates(log, { currentSr: s.currentSuperRebirthCycle, currentRb: s.currentRebirth, kind: "rb" }).rb.current;
+      } catch (_) { measured = null; }
+
+      const projEta = ratePerMin > 0 && creditsRemainingCycle != null ? creditsRemainingCycle / ratePerMin : null;
+      const measEta = measured && measured.creditsPerMin && measured.creditsPerMin > 0 && creditsRemainingCycle != null ? creditsRemainingCycle / measured.creditsPerMin : null;
+
+      const rows = dashboard.map((row) => `
+        <tr>
+          <td>${row.rebirth}</td>
+          <td>${fmt(row.creditsRequired)}</td>
+          <td>${fmt(row.ratePerMin, 2)}</td>
+          <td>${row.etcDays == null ? "—" : fmt(row.etcDays, 2)}</td>
+          <td>${row.etcHours == null ? "—" : fmt(row.etcHours, 2)}</td>
+          <td>${row.nova == null ? "—" : fmt(row.nova)}</td>
+        </tr>`).join("");
+
+      box.innerHTML = `
+        <div class="stats-summary">
+          <div class="stat"><div class="stat-label">Super Rebirth Cycle</div><div class="stat-value">${s.currentSuperRebirthCycle}</div></div>
+          <div class="stat"><div class="stat-label">Rebirth</div><div class="stat-value">${s.currentRebirth}</div></div>
+          <div class="stat"><div class="stat-label">Current Credits</div><div class="stat-value">${fmt(s.currentCredits)}</div></div>
+          <div class="stat"><div class="stat-label">Upgrade Tokens</div><div class="stat-value">${fmt(s.currentUpgradeTokens)}</div></div>
+          <div class="stat"><div class="stat-label">Offline Earnings</div><div class="stat-value">${fmt(s.offlineEarningsBhr, 3)}<span style="font-size:14px;color:var(--muted)"> b/hr</span></div></div>
+        </div>
+        <div class="stats-rate">
+          <div class="stat"><div class="stat-label">Projected Rate</div><div class="stat-value">${fmtRate(ratePerMin)}<span style="font-size:14px;color:var(--muted)"> cr/min</span></div></div>
+          <div class="stat"><div class="stat-label">Measured Rate (current RB)</div><div class="stat-value">${fmtRate(measured && measured.creditsPerMin)}<span style="font-size:14px;color:var(--muted)"> cr/min</span></div></div>
+        </div>
+
+        <div class="results-head" style="margin-top:18px;">
+          <div class="label">Credits remaining to finish the cycle</div>
+          <div class="tag">Rebirth ${s.currentRebirth}</div>
+        </div>
+        <div class="stats-summary">
+          <div class="stat"><div class="stat-label">Credits required (this rebirth)</div><div class="stat-value">${fmt(currentCostRow ? currentCostRow.credits : null)}</div></div>
+          <div class="stat"><div class="stat-label">Credits remaining (this rebirth)</div><div class="stat-value">${fmt(creditsRemainingCycle)}</div></div>
+        </div>
+        <div class="results-head" style="margin-top:18px;">
+          <div class="label">Estimated time to finish this rebirth cycle</div>
+        </div>
+        <div class="stats-summary">
+          <div class="stat"><div class="stat-label">Projected ETA</div><div class="stat-value">${fmtDuration(projEta)}</div></div>
+          <div class="stat"><div class="stat-label">Measured ETA</div><div class="stat-value">${fmtDuration(measEta)}</div></div>
+        </div>
+        <p class="hint" style="margin-top:12px;">
+          Projected ETA = Credits Remaining ÷ Projected Rate. Measured ETA uses the real rate from your snapshot log (shown once you have ≥ ${MIN_SNAPSHOTS} snapshots for this rebirth).
+        </p>
+
+        <div class="results-head" style="margin-top:18px;">
+          <div class="label">Upcoming rebirths — requirements, ETA &amp; Nova</div>
+          <div class="tag">from Rebirth ${s.currentRebirth}</div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="stats-table">
+            <thead><tr><th>Rebirth</th><th>Credits Req.</th><th>Rate (cr/min)</th><th>ETC (days)</th><th>ETC (hrs)</th><th>Nova</th></tr></thead>
+            <tbody>${rows || '<tr><td colspan="6" class="empty">No upcoming rebirths in the cost table.</td></tr>'}</tbody>
+          </table>
+        </div>
+        <p class="hint" style="margin-top:12px;">
+          ETC = Credits Required ÷ Rate ÷ 1440 (days) / 60 (hours). Rate is derived from Offline Earnings (b/hr → cr/min). Nova follows the spreadsheet's reward curve.
+        </p>`;
+    } catch (e) {
+      box.innerHTML = `<div class="error">Error computing stats: ${e.message}</div>`;
+    }
+  }
+
+  // --- Measured rates view --------------------------------------------
+  function loadMeasured() {
+    const box = $("measuredBox");
+    try {
+      const s = loadStatsLocal();
+      const log = loadLogLocal();
+      const m = computeMeasuredRates(log, { currentSr: s.currentSuperRebirthCycle, currentRb: s.currentRebirth, kind: "both" });
+      const sr = (m.sr && m.sr.current) || null;
+      const rb = (m.rb && m.rb.current) || null;
+
+      function groupTable(groups) {
+        if (!groups || !groups.length) return `<div class="empty">No snapshots logged yet for any cycle.</div>`;
+        const rows = groups.map((g) => `
+          <tr>
+            <td>${g.key}</td>
+            <td>${g.count}</td>
+            <td>${g.creditsPerMin == null ? '<span class="rate-bad">need ≥2</span>' : fmtRate(g.creditsPerMin)}</td>
+            <td>${g.tokensPerMin == null ? '<span class="rate-bad">need ≥2</span>' : fmtRate(g.tokensPerMin)}</td>
+          </tr>`).join("");
+        return `
+          <table class="log-table">
+            <thead><tr><th>Cycle</th><th>Snapshots</th><th>Credits / min</th><th>Tokens / min</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>`;
+      }
+
+      box.innerHTML = `
+        <div class="stats-summary">
+          <div class="stat"><div class="stat-label">Current SR cycle</div><div class="stat-value">${fmtRate(sr && sr.creditsPerMin)}<span style="font-size:14px;color:var(--muted)"> cr/min</span></div></div>
+          <div class="stat"><div class="stat-label">Current SR tokens/min</div><div class="stat-value">${fmtRate(sr && sr.tokensPerMin)}</div></div>
+          <div class="stat"><div class="stat-label">Current RB cycle</div><div class="stat-value">${fmtRate(rb && rb.creditsPerMin)}<span style="font-size:14px;color:var(--muted)"> cr/min</span></div></div>
+          <div class="stat"><div class="stat-label">Current RB tokens/min</div><div class="stat-value">${fmtRate(rb && rb.tokensPerMin)}</div></div>
+        </div>
+        <div class="results-head" style="margin-top:18px;">
+          <div class="label">By Super Rebirth cycle</div>
+          <div class="tag">${log.length} snapshots</div>
+        </div>
+        ${groupTable(m.sr && m.sr.groups)}
+        <div class="results-head" style="margin-top:18px;">
+          <div class="label">By (Super Rebirth, Rebirth) cycle</div>
+        </div>
+        ${groupTable(m.rb && m.rb.groups)}`;
+    } catch (e) {
+      box.innerHTML = `<div class="error">Error loading measured rates: ${e.message}</div>`;
+    }
+  }
+
+  // --- Snapshot log view ----------------------------------------------
+  function loadLog() {
+    const box = $("logBox");
+    try {
+      const log = loadLogLocal().slice().reverse(); // newest first
+      if (!log.length) {
+        box.innerHTML = `<div class="placeholder">No snapshots yet. Fill in the fields above and press <strong>Log snapshot</strong>.</div>`;
+        return;
+      }
+      const rows = log.map((s) => `
+        <tr>
+          <td>${fmtTime(s.ts)}</td>
+          <td>SR${s.currentSuperRebirthCycle} · R${s.currentRebirth}</td>
+          <td>${fmt(s.currentCredits)}</td>
+          <td>${fmt(s.currentUpgradeTokens)}</td>
+        </tr>`).join("");
+      box.innerHTML = `
+        <div style="overflow-x:auto;">
+          <table class="log-table">
+            <thead><tr><th>When</th><th>Stage</th><th>Credits</th><th>Tokens</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+    } catch (e) {
+      box.innerHTML = `<div class="error">Error loading log: ${e.message}</div>`;
+    }
+  }
+
+  function clearLog() {
+    const st = $("logStatus");
+    st.textContent = "Clearing…";
+    try {
+      clearLogLocal();
+      st.className = "status";
+      st.textContent = "Log cleared.";
+      loadLog();
+      loadMeasured();
+    } catch (e) {
+      st.className = "error";
+      st.textContent = "Failed to clear log: " + e.message;
+    }
+  }
+
+  $("statSaveBtn").addEventListener("click", saveStats);
+  $("statResetBtn").addEventListener("click", resetStats);
+  $("snapshotBtn").addEventListener("click", logSnapshot);
+  $("clearLogBtn").addEventListener("click", clearLog);
+
+  // Export / import to a real JSON file (offline backup that survives clearing
+  // this browser's localStorage). The hidden file input lets the Import button
+  // trigger a native file picker.
+  const exportBtn = document.getElementById("exportBtn");
+  const importBtn = document.getElementById("importBtn");
+  const importFile = document.getElementById("importFile");
+  if (exportBtn) exportBtn.addEventListener("click", exportData);
+  if (importBtn && importFile) importBtn.addEventListener("click", () => importFile.click());
+  if (importFile) importFile.addEventListener("change", importData);
+
+  loadStats();
+  renderComputed();
+  loadMeasured();
+  loadLog();
+</script>
+</body>
+</html>

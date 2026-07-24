@@ -1,0 +1,1380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Droid Tycoon — Rebirth Tracker</title>
+<style>
+  :root {
+    --bg: #0b0f1a;
+    --panel: #141a2b;
+    --panel-2: #1b2336;
+    --border: #2a3654;
+    --text: #e6ecff;
+    --muted: #8b97b8;
+    --accent: #5b8cff;
+    --accent-2: #7c5cff;
+    --good: #36d399;
+    --shadow: 0 8px 30px rgba(0,0,0,.35);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: radial-gradient(1200px 600px at 80% -10%, #1a2138 0%, var(--bg) 60%);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  header {
+    display: flex; align-items: center; gap: 14px;
+    padding: 18px 28px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(20,26,43,.7);
+    backdrop-filter: blur(6px);
+  }
+  header .logo {
+    width: 38px; height: 38px; border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    display: grid; place-items: center; font-size: 20px; box-shadow: var(--shadow);
+  }
+  header h1 { font-size: 18px; margin: 0; letter-spacing: .3px; }
+  header .sub { color: var(--muted); font-size: 13px; }
+
+  main { max-width: 980px; margin: 0 auto; padding: 28px; }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 22px;
+    box-shadow: var(--shadow);
+  }
+  .card + .card { margin-top: 22px; }
+
+  .card h2 { margin: 0 0 4px; font-size: 16px; }
+  .card p.hint { margin: 0 0 18px; color: var(--muted); font-size: 13px; }
+
+  /* The search component (ported exactly from the spreadsheet dashboard) */
+  .search-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 620px) { .search-row { grid-template-columns: 1fr; } }
+
+  .field { display: flex; flex-direction: column; gap: 7px; }
+  .field label { font-size: 13px; color: var(--muted); font-weight: 600; letter-spacing: .2px; }
+  select {
+    appearance: none;
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--panel-2) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' stroke='%238b97b8' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>") no-repeat right 14px center;
+    color: var(--text);
+    font-size: 14px;
+    cursor: pointer;
+    outline: none;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(91,140,255,.18); }
+
+  .controls { display: flex; gap: 12px; margin-top: 18px; align-items: center; }
+  button {
+    border: none; border-radius: 10px; padding: 11px 18px; font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: transform .05s, filter .15s; color: #fff;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  }
+  button:hover { filter: brightness(1.07); }
+  button:active { transform: translateY(1px); }
+  button.secondary { background: var(--panel-2); border: 1px solid var(--border); color: var(--text); }
+  .status { color: var(--muted); font-size: 13px; }
+
+  /* Current progress card */
+  .progress-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 4px; }
+  .stat { background: var(--panel-2); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .stat-label { font-size: 12px; color: var(--muted); font-weight: 600; letter-spacing: .3px; text-transform: uppercase; }
+  .stat-value { font-size: 32px; font-weight: 800; margin-top: 4px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+  /* Results */
+  .results-head { display: flex; align-items: baseline; justify-content: space-between; margin: 4px 0 16px; }
+  .results-head .label { font-size: 15px; font-weight: 700; }
+  .results-head .tag {
+    font-size: 12px; color: var(--muted);
+    border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px;
+  }
+  .droid-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+  .droid {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 12px; padding: 14px;
+  }
+  .swatch { width: 14px; height: 14px; border-radius: 50%; border: 1px solid rgba(255,255,255,.25); flex: none; }
+  .droid .name { font-weight: 600; }
+  .droid .color { color: var(--muted); font-size: 12px; }
+  .empty { color: var(--muted); font-size: 14px; padding: 10px 2px; }
+  .placeholder { color: var(--muted); font-size: 14px; padding: 22px 4px; text-align: center; border: 1px dashed var(--border); border-radius: 12px; }
+  .error { color: #ff7a90; font-size: 13px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+  .legend .item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+
+  /* Remaining-need mini-summary (task t_b5c5e75a) */
+  .necessity-box { margin-top: 18px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 12px; background: rgba(255,255,255,0.03); }
+  .nec-head { font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+  .nec-verdict { font-size: 15px; font-weight: 700; margin-bottom: 10px; }
+  .nec-verdict .verdict.yes { color: #ffd36b; }
+  .nec-verdict .verdict.no { color: #79f2b0; }
+  .nec-droid { color: var(--fg); font-weight: 700; }
+  .nec-sub { font-size: 13px; color: var(--muted); margin: 6px 0 8px; }
+  .necessity-box .droid { background: rgba(255,255,255,0.04); }
+
+  /* Rebirth-map grid (droid selection highlight) */
+  .map-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(58px, 1fr));
+    gap: 8px;
+    margin-top: 6px;
+  }
+  .map-cell {
+    position: relative;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--panel-2);
+    padding: 8px 6px 7px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .15s, box-shadow .15s, transform .05s, background .15s;
+  }
+  .map-cell:hover { border-color: var(--accent); }
+  .map-cell:active { transform: translateY(1px); }
+  .map-cell .rb-num { font-size: 12px; font-weight: 700; color: var(--text); }
+  .map-cell .mini-chips { display: flex; gap: 3px; justify-content: center; margin-top: 5px; }
+  .map-cell .mini-chips .swatch { width: 11px; height: 11px; }
+  /* A rebirth that requires the selected droid. */
+  .map-cell.match {
+    border-color: var(--accent);
+    background: linear-gradient(180deg, rgba(91,140,255,.22), rgba(124,92,255,.14));
+    box-shadow: 0 0 0 2px rgba(91,140,255,.45), var(--shadow);
+  }
+  .map-cell.match .rb-num { color: #fff; }
+  /* The player's current stage inside the cycle. */
+  .map-cell.current { outline: 2px solid var(--good); outline-offset: -2px; }
+  .map-cell.current.match { outline-color: var(--good); }
+  /* Past stages (before current) are dimmed. */
+  .map-cell.past { opacity: .4; }
+  .map-cell .match-badge {
+    position: absolute; top: -7px; right: -7px;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #fff; font-size: 11px; font-weight: 800;
+    display: grid; place-items: center; box-shadow: var(--shadow);
+  }
+  .map-legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 14px; }
+  .map-legend .item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+  .map-legend .sample { width: 16px; height: 22px; border-radius: 6px; border: 1px solid var(--border); }
+  .map-legend .sample.match { background: linear-gradient(180deg, rgba(91,140,255,.3), rgba(124,92,255,.2)); border-color: var(--accent); box-shadow: 0 0 0 2px rgba(91,140,255,.45); }
+  .map-legend .sample.current { outline: 2px solid var(--good); outline-offset: -2px; }
+
+  /* Stage-detail output (mirrors the SPR/Stage Detail view) */
+  .stage-detail { margin-top: 14px; }
+  .stage-detail .sd-head { font-size: 14px; color: var(--muted); margin-bottom: 10px; }
+  .stage-detail .sd-head b { color: var(--text); }
+  .sd-droid {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 12px;
+    padding: 12px 14px; margin-bottom: 8px;
+  }
+  .sd-droid .sd-name { font-weight: 600; flex: 1; }
+  .sd-droid .sd-color { color: var(--muted); font-size: 12px; }
+  .sd-cost { font-size: 13px; color: var(--muted); margin-top: 10px; }
+  .sd-cost b { color: var(--text); }
+  footer { text-align: center; color: var(--muted); font-size: 12px; padding: 24px; }
+
+  /* Statistics view (task t_4b627966) — mirrors the spreadsheet dashboard */
+  .stats-summary, .stats-rate {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px;
+    margin-bottom: 16px;
+  }
+  .stats-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .stats-table th, .stats-table td {
+    text-align: right; padding: 9px 12px; border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .stats-table th:first-child, .stats-table td:first-child { text-align: center; color: var(--muted); }
+  .stats-table thead th {
+    color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em;
+    border-bottom: 1px solid var(--accent);
+  }
+  .stats-table tbody tr:hover { background: rgba(91,140,255,.06); }
+  .stats-inputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-bottom: 16px; }
+  .stats-inputs .field input {
+    width: 100%; padding: 11px 12px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--panel-2); color: var(--text); font-size: 14px;
+  }
+  .stats-inputs .field input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(91,140,255,.18); outline: none; }
+</style>
+</head>
+<body>
+  <header>
+    <div class="logo">&#129302;</div>
+    <div>
+      <h1>Droid Tycoon — Rebirth Tracker</h1>
+      <div class="sub">Find which droids are required for any rebirth stage</div>
+    </div>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Pick a droid</h2>
+      <p class="hint">Select a specific droid from the roster. Its ID is published to the rest of the tracker (listen for the <code>droid:selected</code> event or read <code>window.selectedDroidId</code>).</p>
+      <div class="field">
+        <label for="droidPicker">Droid</label>
+        <input id="droidPicker" type="text" list="droidPickerList" placeholder="Type to search the roster…" autocomplete="off"
+          style="padding:12px 14px;border-radius:10px;border:1px solid var(--border);background:var(--panel-2);color:var(--text);font-size:14px;" />
+        <datalist id="droidPickerList"></datalist>
+      </div>
+      <div class="controls">
+        <button id="droidPickerClear" class="secondary">Clear</button>
+        <span class="status" id="droidPickerStatus"></span>
+      </div>
+      <div class="results-head" style="margin-top:16px;">
+        <div class="label">Selected droid ID</div>
+        <div class="tag" id="selectedDroidTag">—</div>
+      </div>
+    </section>
+
+    <section class="card" id="cyclePanel">
+      <h2>Super rebirth cycle usage</h2>
+      <p class="hint">Which stages and colors this droid is required for in the current super rebirth cycle (Super Rebirth <span id="cyclePanelSr">1</span>). Pick a droid above — the rebirths that need it light up below, and you can click any rebirth to see its exact droids.</p>
+      <div id="cyclePanelBody">
+        <div class="placeholder">Pick a droid above to see if it is used in the current cycle.</div>
+      </div>
+      <!-- Rebirth-map grid: one cell per rebirth in the current cycle. The
+           cell is highlighted when the selected droid is required there. -->
+      <div id="cycleMapWrap" style="display:none; margin-top:18px;">
+        <div class="results-head">
+          <div class="label">Rebirths in this super cycle</div>
+          <div class="tag" id="cycleMapTag">—</div>
+        </div>
+        <div class="map-grid" id="cycleMap"></div>
+        <div class="map-legend">
+          <div class="item"><span class="sample match"></span> Needs selected droid</div>
+          <div class="item"><span class="sample current"></span> Your current stage</div>
+          <div class="item"><span class="sample" style="opacity:.4"></span> Past rebirth</div>
+        </div>
+      </div>
+      <!-- Stage-detail output (mirrors the SPR / Stage Detail view). -->
+      <div class="stage-detail" id="cycleStageDetail" style="display:none;"></div>
+    </section>
+
+    <section class="card">
+      <h2>Search droids by cycle</h2>
+      <p class="hint">Filter the droid list by Super Rebirth Cycle and Rebirth Cycle — same fields and behavior as the original dashboard.</p>
+      <div class="search-row">
+        <div class="field">
+          <label for="superRebirth">Super Rebirth Cycle</label>
+          <select id="superRebirth"><option value="">Select…</option></select>
+        </div>
+        <div class="field">
+          <label for="rebirth">Rebirth Cycle</label>
+          <select id="rebirth"><option value="">Select…</option></select>
+        </div>
+        <div class="field">
+          <label for="cycleDroid">Droid to check</label>
+          <select id="cycleDroid"><option value="">— Select a droid —</option></select>
+        </div>
+      </div>
+      <p class="hint" style="margin-top:10px;">Pick a droid in <strong>Droid to check</strong> to highlight where it's required across the current super rebirth cycle and to run the <strong>Remaining-need check</strong> below — that shows whether it's still required for your remaining rebirths (keep) or safe to sell.</p>
+      <div class="controls">
+        <button id="searchBtn">Search</button>
+        <button id="clearBtn" class="secondary">Clear</button>
+        <span class="status" id="status"></span>
+      </div>
+    </section>
+
+    <section class="card" id="progressCard">
+      <h2>Current progress</h2>
+      <p class="hint">Your current stage in the rebirth grind. Press <strong>Rebirth</strong> to advance both cycles — Rebirth +1 (wraps to 1 at 27), and Super Rebirth +1 when Rebirth wraps.</p>
+      <div class="progress-grid">
+        <div class="stat">
+          <div class="stat-label">Super Rebirth Cycle</div>
+          <div class="stat-value" id="srValue">—</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Rebirth Cycle</div>
+          <div class="stat-value" id="rbValue">—</div>
+        </div>
+      </div>
+      <div class="controls">
+        <button id="rebirthBtn">Rebirth</button>
+        <span class="status" id="rebirthStatus"></span>
+      </div>
+      <div class="results-head" style="margin-top:18px;">
+        <div class="label">Droids required at this stage</div>
+        <div class="tag" id="progressCount">—</div>
+      </div>
+      <div id="progressResults">
+        <div class="placeholder">Loading your current stage…</div>
+      </div>
+    </section>
+
+    <section class="card" id="statsCard">
+      <h2>Player stat tracking</h2>
+      <p class="hint">Track your grind variables, watch credits/tokens accumulate, measure your real credits-per-minute, and estimate when the cycle finishes — on its own page.</p>
+      <div class="controls">
+        <a href="/stats.html" style="text-decoration:none;"><button>Open Stat Tracking page &rarr;</button></a>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="results-head">
+        <div class="label">Required droids</div>
+        <div class="tag" id="countTag">—</div>
+      </div>
+      <div id="results">
+        <div class="placeholder">Select a Super Rebirth Cycle and Rebirth Cycle, then press Search.</div>
+      </div>
+      <div class="legend" id="legend"></div>
+    </section>
+  </main>
+
+  <footer>Droid Tycoon Rebirth Tracker · data served live from droid_tycoon.db</footer>
+
+  <!-- Admin section: edit the required droids for any rebirth stage. -->
+  <section class="card" id="adminCard" style="margin:0 auto 28px; max-width:980px;">
+    <h2>Admin — edit rebirth cycles</h2>
+    <p class="hint">Load a stage, edit its required droids (name + color), and save straight to the database. Changes are read live everywhere. You can also add/remove/reorder droids or override the current stage.</p>
+    <div class="search-row" style="margin-bottom:16px;">
+      <div class="field" style="grid-column: 1 / -1;">
+        <label for="adminKey">Admin key</label>
+        <input id="adminKey" type="password" autocomplete="off" placeholder="Required to save changes"
+          style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:14px;"
+          oninput="localStorage.setItem('droidAdminKey', this.value)" />
+        <div class="hint" style="margin-top:6px;">Sent as the <code>X-Admin-Key</code> header. Stored only in this browser's localStorage. If the server was started without <code>DROID_TYCOON_ADMIN_KEY</code>, the key is printed in its startup log.</div>
+      </div>
+    </div>
+    <div class="search-row">
+      <div class="field">
+        <label for="adminSuper">Super Rebirth Cycle</label>
+        <select id="adminSuper"><option value="">Select…</option></select>
+      </div>
+      <div class="field">
+        <label for="adminRebirth">Rebirth Cycle</label>
+        <select id="adminRebirth"><option value="">Select…</option></select>
+      </div>
+    </div>
+    <div class="controls">
+      <button id="adminLoadBtn" class="secondary">Load stage</button>
+      <span class="status" id="adminStatus"></span>
+    </div>
+
+    <div id="adminEditor" style="display:none; margin-top:18px;">
+      <div id="adminRows"></div>
+      <div class="controls">
+        <button id="adminAddBtn" class="secondary">+ Add droid</button>
+        <button id="adminSaveBtn">Save stage</button>
+      </div>
+    </div>
+
+    <div style="margin-top:22px; padding-top:18px; border-top:1px solid var(--border);">
+      <div class="results-head"><div class="label">Override current player stage</div></div>
+      <div class="search-row">
+        <div class="field">
+          <label for="adminSetSuper">Super Rebirth Cycle</label>
+          <input id="adminSetSuper" type="number" min="1" placeholder="e.g. 1"
+            style="padding:12px 14px;border-radius:10px;border:1px solid var(--border);background:var(--panel-2);color:var(--text);font-size:14px;" />
+        </div>
+        <div class="field">
+          <label for="adminSetRebirth">Rebirth Cycle</label>
+          <input id="adminSetRebirth" type="number" min="1" placeholder="e.g. 1"
+            style="padding:12px 14px;border-radius:10px;border:1px solid var(--border);background:var(--panel-2);color:var(--text);font-size:14px;" />
+        </div>
+      </div>
+      <div class="controls">
+        <button id="adminSetStageBtn" class="secondary">Set current stage</button>
+        <span class="status" id="adminSetStatus"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Admin section: edit the upgrade-chip total for any rebirth tier. -->
+  <section class="card" id="adminChipsCard" style="margin:0 auto 28px; max-width:980px;">
+    <h2>Admin — edit upgrade chips per rebirth</h2>
+    <p class="hint">Load a rebirth tier (Super Rebirth + Rebirth), view its current upgrade-chip total, edit it, and save straight to the database. Changes are read live everywhere (e.g. the stage-detail panel).</p>
+    <div class="search-row">
+      <div class="field">
+        <label for="chipSuper">Super Rebirth Cycle</label>
+        <select id="chipSuper"><option value="">Select…</option></select>
+      </div>
+      <div class="field">
+        <label for="chipRebirth">Rebirth Cycle</label>
+        <select id="chipRebirth"><option value="">Select…</option></select>
+      </div>
+    </div>
+    <div class="controls">
+      <button id="chipLoadBtn" class="secondary">Load tier</button>
+      <span class="status" id="chipStatus"></span>
+    </div>
+
+    <div id="chipEditor" style="display:none; margin-top:18px;">
+      <div class="field" style="max-width:320px;">
+        <label for="chipValue">Upgrade chips (total)</label>
+        <input id="chipValue" type="number" min="0" step="any" placeholder="e.g. 35370"
+          style="padding:12px 14px;border-radius:10px;border:1px solid var(--border);background:var(--panel-2);color:var(--text);font-size:14px;" />
+      </div>
+      <div class="controls">
+        <button id="chipSaveBtn">Save chips</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Admin section: edit the credits (and nova) required for a rebirth level. -->
+  <section class="card" id="adminCostCard" style="margin:0 auto 28px; max-width:980px;">
+    <h2>Admin — edit rebirth credit cost</h2>
+    <p class="hint">Pick a rebirth level, change how many credits (and Nova) are required to perform that rebirth, and save straight to the config store. The new cost is read live everywhere — the stage-detail panel, the stat ETA, and any in-game enforcement — so the change takes effect immediately. (The credits shown are the <em>required</em> amount for that level, matching the rebirth_cost table.)</p>
+    <div class="search-row">
+      <div class="field">
+        <label for="costRebirth">Rebirth Level</label>
+        <select id="costRebirth"><option value="">Select…</option></select>
+      </div>
+    </div>
+    <div class="controls">
+      <button id="costLoadBtn" class="secondary">Load level</button>
+      <span class="status" id="costStatus"></span>
+    </div>
+
+    <div id="costEditor" style="display:none; margin-top:18px;">
+      <div class="search-row">
+        <div class="field" style="max-width:320px;">
+          <label for="costCredits">Credits required</label>
+          <input id="costCredits" type="number" min="0" step="any" placeholder="e.g. 150000"
+            style="padding:12px 14px;border-radius:10px;border:1px solid var(--border);background:var(--panel-2);color:var(--text);font-size:14px;" />
+        </div>
+        <div class="field" style="max-width:320px;">
+          <label for="costNova">Nova (optional)</label>
+          <input id="costNova" type="number" min="0" step="any" placeholder="leave blank to keep"
+            style="padding:12px 14px;border-radius:10px;border:1px solid var(--border);background:var(--panel-2);color:var(--text);font-size:14px;" />
+        </div>
+      </div>
+      <div class="controls">
+        <button id="costSaveBtn">Save cost</button>
+      </div>
+    </div>
+  </section>
+
+<script>
+  const COLOR_HEX = {
+    Base: "#9aa4bf", Default: "#c9d2ec", Gold: "#f2c14e",
+    Diamond: "#6fe3e0", Rainbow: "#c46bff", Beskar: "#b9c2cf",
+    Galactic: "#8b5cff", "Base (Incorrect)": "#ff7a90", "Default (Incorrect)": "#ff7a90"
+  };
+
+  const $ = (id) => document.getElementById(id);
+
+  // Guard: this page is a client for the Droid Tycoon server (node server.js).
+  // Opening it directly from disk (file://) means every /api/* fetch fails with
+  // a network error, so all dropdowns stay empty and the admin DB status reads
+  // as "network error". Surface a loud, unmistakable banner in that case so the
+  // real problem (wrong entry point) is obvious instead of looking like a DB bug.
+  if (location.protocol === "file:") {
+    const b = document.createElement("div");
+    b.style.cssText =
+      "position:sticky;top:0;z-index:9999;background:#b3261e;color:#fff;" +
+      "padding:14px 18px;font:600 14px/1.4 system-ui,sans-serif;text-align:center;";
+    b.innerHTML =
+      "⚠ You opened index.html directly from disk (file://). The page can't reach " +
+      "the server, so dropdowns stay empty and the admin database status fails. " +
+      "Start the server with <code style=\"background:#00000030;padding:1px 5px;border-radius:4px;\">node server.js</code> " +
+      "then open <code style=\"background:#00000030;padding:1px 5px;border-radius:4px;\">http://localhost:8787</code>.";
+    document.body.prepend(b);
+  }
+
+  const superSel = $("superRebirth");
+  const rebirthSel = $("rebirth");
+  const statusEl = $("status");
+  const resultsEl = $("results");
+  const countTag = $("countTag");
+  const legendEl = $("legend");
+
+  function fillSelect(sel, values, labelFn) {
+    values.forEach((v) => {
+      const opt = document.createElement("option");
+      opt.value = v;
+      opt.textContent = labelFn ? labelFn(v) : v;
+      sel.appendChild(opt);
+    });
+  }
+
+  function colorHex(c) { return COLOR_HEX[c] || "#9aa4bf"; }
+
+  async function loadFilters() {
+    try {
+      const r = await fetch("/api/filters");
+      const f = await r.json();
+      // Reset to the placeholder before filling so repeated calls don't duplicate options.
+      superSel.length = 1;
+      rebirthSel.length = 1;
+      fillSelect(superSel, f.super_rebirth_cycles, (v) => "Cycle " + v);
+      fillSelect(rebirthSel, f.rebirth_levels, (v) => "Rebirth " + v);
+      // Cache the cost curve for the stage-detail output.
+      rebirthCost = {};
+      (f.rebirth_cost || []).forEach((c) => {
+        rebirthCost[c.rebirth] = c;
+      });
+      // build legend
+      legendEl.innerHTML = "";
+      (f.colors || []).forEach((c) => {
+        const item = document.createElement("div");
+        item.className = "item";
+        item.innerHTML = `<span class="swatch" style="background:${colorHex(c)}"></span>${c}`;
+        legendEl.appendChild(item);
+      });
+    } catch (e) {
+      statusEl.textContent = "Failed to load filters.";
+    }
+  }
+
+  function renderResults(data) {
+    countTag.textContent = data.count + " droid" + (data.count === 1 ? "" : "s");
+    if (!data.droids.length) {
+      resultsEl.innerHTML = `<div class="empty">No droids found for Super Rebirth Cycle ${data.super_rebirth}, Rebirth Cycle ${data.rebirth}.</div>`;
+      return;
+    }
+    const list = document.createElement("div");
+    list.className = "droid-list";
+    data.droids.forEach((d) => {
+      const el = document.createElement("div");
+      el.className = "droid";
+      el.innerHTML =
+        `<span class="swatch" style="background:${colorHex(d.color)}"></span>` +
+        `<div><div class="name">${escapeHtml(d.name)}</div><div class="color">${escapeHtml(d.color)}</div></div>`;
+      list.appendChild(el);
+    });
+    resultsEl.innerHTML = "";
+    resultsEl.appendChild(list);
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (m) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
+  }
+
+  async function doSearch() {
+    const sr = superSel.value;
+    const rb = rebirthSel.value;
+    statusEl.className = "status";
+    if (!sr || !rb) {
+      statusEl.textContent = "Please choose both a Super Rebirth Cycle and a Rebirth Cycle.";
+      return;
+    }
+    statusEl.textContent = "Searching…";
+    try {
+      const r = await fetch(`/api/droids?super_rebirth=${encodeURIComponent(sr)}&rebirth=${encodeURIComponent(rb)}`);
+      const data = await r.json();
+      if (!r.ok) {
+        statusEl.textContent = data.error || "Search failed.";
+        countTag.textContent = "—";
+        resultsEl.innerHTML = `<div class="placeholder">Select a stage and press Search.</div>`;
+        return;
+      }
+      renderResults(data);
+      statusEl.textContent = "";
+    } catch (e) {
+      statusEl.textContent = "Network error.";
+    }
+  }
+
+  function doClear() {
+    superSel.value = "";
+    rebirthSel.value = "";
+    resultsEl.innerHTML = `<div class="placeholder">Select a Super Rebirth Cycle and Rebirth Cycle, then press Search.</div>`;
+    countTag.textContent = "—";
+    statusEl.textContent = "";
+  }
+
+  $("searchBtn").addEventListener("click", doSearch);
+  $("clearBtn").addEventListener("click", doClear);
+  // Pressing Enter inside either dropdown triggers search.
+  [superSel, rebirthSel].forEach((s) =>
+    s.addEventListener("keydown", (e) => { if (e.key === "Enter") doSearch(); })
+  );
+
+  const srValue = $("srValue");
+  const rbValue = $("rbValue");
+  const progressResults = $("progressResults");
+  const progressCount = $("progressCount");
+  const rebirthBtn = $("rebirthBtn");
+  const rebirthStatus = $("rebirthStatus");
+
+  function renderProgress(data) {
+    // Remember the player's current stage so the rebirth map can mark it.
+    if (typeof data.super_rebirth === "number" && typeof data.rebirth === "number") {
+      currentStage = { super_rebirth: data.super_rebirth, rebirth: data.rebirth };
+    }
+    srValue.textContent = data.super_rebirth;
+    rbValue.textContent = data.rebirth;
+    progressCount.textContent = (data.droids ? data.droids.length : 0) + " droid" +
+      (data.droids && data.droids.length === 1 ? "" : "s");
+    if (!data.droids || !data.droids.length) {
+      progressResults.innerHTML = `<div class="empty">No droids recorded for this stage.</div>`;
+      return;
+    }
+    const list = document.createElement("div");
+    list.className = "droid-list";
+    data.droids.forEach((d) => {
+      const el = document.createElement("div");
+      el.className = "droid";
+      el.innerHTML =
+        `<span class="swatch" style="background:${colorHex(d.color)}"></span>` +
+        `<div><div class="name">${escapeHtml(d.name)}</div><div class="color">${escapeHtml(d.color)}</div></div>`;
+      list.appendChild(el);
+    });
+    progressResults.innerHTML = "";
+    progressResults.appendChild(list);
+  }
+
+  async function loadProgress() {
+    try {
+      const r = await fetch("/api/state");
+      const data = await r.json();
+      if (!r.ok) { rebirthStatus.textContent = data.error || "Failed to load progress."; return; }
+      renderProgress(data);
+    } catch (e) {
+      rebirthStatus.textContent = "Network error loading progress.";
+    }
+  }
+
+  async function doRebirth() {
+    rebirthStatus.className = "status";
+    rebirthStatus.textContent = "Rebirthing…";
+    rebirthBtn.disabled = true;
+    try {
+      const r = await fetch("/api/rebirth", { method: "POST" });
+      const data = await r.json();
+      if (!r.ok) { rebirthStatus.textContent = data.error || "Rebirth failed."; return; }
+      renderProgress(data);
+      rebirthStatus.textContent = `Advanced to Super Rebirth ${data.super_rebirth}, Rebirth ${data.rebirth}.`;
+    } catch (e) {
+      rebirthStatus.textContent = "Network error during rebirth.";
+    } finally {
+      rebirthBtn.disabled = false;
+    }
+  }
+
+  rebirthBtn.addEventListener("click", doRebirth);
+
+  // ---------- Admin: edit rebirth cycles ----------
+  const adminSuper = $("adminSuper");
+  const adminRebirth = $("adminRebirth");
+  const adminStatus = $("adminStatus");
+  const adminEditor = $("adminEditor");
+  const adminRows = $("adminRows");
+  let adminColors = [];
+  let validColors = [];
+
+  function getAdminKey() {
+    const el = $("adminKey");
+    const v = (el && el.value) ? el.value : (localStorage.getItem("droidAdminKey") || "");
+    return v.trim();
+  }
+
+  function adminHeaders(extra) {
+    const h = Object.assign({ "Content-Type": "application/json" }, extra || {});
+    const key = getAdminKey();
+    if (key) h["X-Admin-Key"] = key;
+    return h;
+  }
+
+  function fillAdminSelects(f) {
+    fillSelect(adminSuper, f.super_rebirth_cycles, (v) => "Cycle " + v);
+    fillSelect(adminRebirth, f.rebirth_levels, (v) => "Rebirth " + v);
+    adminColors = f.colors || [];
+    // Canonical, curated palette (no erroneous entries, annotations stripped).
+    // This drives the color <select> dropdown in each admin row.
+    validColors = f.valid_colors || [];
+  }
+
+  function makeAdminRow(name, color) {
+    const row = document.createElement("div");
+    row.className = "droid";
+    row.style.gap = "10px";
+    const nameIn = document.createElement("input");
+    nameIn.type = "text";
+    nameIn.value = name || "";
+    nameIn.placeholder = "Droid name";
+    nameIn.className = "admin-name";
+    nameIn.style.cssText = "flex:1;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:14px;";
+    // Color is rendered as a dropdown bound to the canonical color list
+    // (validColors) so only valid, clean color names can be chosen.
+    const colorIn = document.createElement("select");
+    colorIn.className = "admin-color";
+    colorIn.style.cssText = "width:160px;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:14px;";
+    // Build options from the canonical palette. Strip any trailing annotation
+    // (e.g. "Blue (legacy)" -> "Blue") and de-duplicate clean names.
+    const canon = (validColors || [])
+      .map((c) => String(c).split("(")[0].trim())
+      .filter((c, i, arr) => c && arr.indexOf(c) === i);
+    // Preserve an existing value even if it isn't in the canonical list (so a
+    // droid loaded with an off-list/legacy color still round-trips on save).
+    const existing = (color || "").split("(")[0].trim();
+    if (existing && !canon.includes(existing)) canon.push(existing);
+    canon.forEach((c) => {
+      const o = document.createElement("option");
+      o.value = c;
+      o.textContent = c;
+      if (c === existing) o.selected = true;
+      colorIn.appendChild(o);
+    });
+    if (!existing && canon.length) colorIn.value = canon[0];
+    const up = document.createElement("button");
+    up.textContent = "▲";
+    up.title = "Move up";
+    up.className = "secondary";
+    up.style.cssText = "padding:8px 10px;";
+    up.addEventListener("click", () => moveRow(row, -1));
+    const down = document.createElement("button");
+    down.textContent = "▼";
+    down.title = "Move down";
+    down.className = "secondary";
+    down.style.cssText = "padding:8px 10px;";
+    down.addEventListener("click", () => moveRow(row, 1));
+    const del = document.createElement("button");
+    del.textContent = "✕";
+    del.title = "Remove";
+    del.className = "secondary";
+    del.style.cssText = "padding:8px 12px;";
+    del.addEventListener("click", () => row.remove());
+    row.appendChild(up);
+    row.appendChild(down);
+    row.appendChild(nameIn);
+    row.appendChild(colorIn);
+    row.appendChild(del);
+    return row;
+  }
+
+  // Swap a row with its neighbour (dir = -1 up, +1 down) without losing focus
+  // or input values (the inputs move with the DOM node).
+  function moveRow(row, dir) {
+    const parent = row.parentNode;
+    if (!parent) return;
+    const sibs = Array.from(parent.querySelectorAll(".droid"));
+    const idx = sibs.indexOf(row);
+    const target = idx + dir;
+    if (target < 0 || target >= sibs.length) return;
+    if (dir < 0) parent.insertBefore(row, sibs[target]);
+    else parent.insertBefore(row, sibs[target].nextSibling);
+  }
+
+  async function adminLoad() {
+    const sr = adminSuper.value, rb = adminRebirth.value;
+    adminStatus.className = "status";
+    if (!sr || !rb) { adminStatus.textContent = "Choose a Super Rebirth and Rebirth cycle."; return; }
+    adminStatus.textContent = "Loading…";
+    try {
+      const r = await fetch(`/api/admin/stage?super_rebirth=${encodeURIComponent(sr)}&rebirth=${encodeURIComponent(rb)}`, {
+        headers: adminHeaders(),
+      });
+      const data = await r.json();
+      if (!r.ok) { adminStatus.textContent = data.error || "Load failed."; return; }
+      adminRows.innerHTML = "";
+      (data.droids || []).forEach((d) => adminRows.appendChild(makeAdminRow(d.name, d.color)));
+      if (!data.droids || !data.droids.length) adminRows.appendChild(makeAdminRow("", ""));
+      adminEditor.style.display = "block";
+      adminStatus.textContent = `Loaded ${data.droids.length} droid(s) for SR${sr}/R${rb}.`;
+    } catch (e) { adminStatus.textContent = "Network error."; }
+  }
+
+  async function adminSave() {
+    const sr = parseInt(adminSuper.value, 10), rb = parseInt(adminRebirth.value, 10);
+    if (!Number.isInteger(sr) || !Number.isInteger(rb)) { adminStatus.textContent = "Choose a stage first."; return; }
+    const key = getAdminKey();
+    if (!key) { adminStatus.className = "error"; adminStatus.textContent = "Enter the admin key above before saving."; return; }
+    const droids = [];
+    adminRows.querySelectorAll(".droid").forEach((row) => {
+      const name = row.querySelector(".admin-name").value.trim();
+      const color = row.querySelector(".admin-color").value.trim();
+      if (name && color) droids.push({ name, color });
+    });
+    adminStatus.className = "status";
+    adminStatus.textContent = "Saving…";
+    try {
+      const r = await fetch("/api/admin/stage", {
+        method: "POST",
+        headers: adminHeaders(),
+        body: JSON.stringify({ super_rebirth: sr, rebirth: rb, droids }),
+      });
+      const data = await r.json();
+      if (r.status === 401) { adminStatus.className = "error"; adminStatus.textContent = data.error || "Admin key rejected."; return; }
+      if (!r.ok) { adminStatus.textContent = data.error || "Save failed."; return; }
+      adminStatus.textContent = `Saved ${data.saved} droid(s) to SR${sr}/R${rb}.`;
+      // Refresh dependent views + reference lists.
+      loadFilters();
+      loadProgress();
+    } catch (e) { adminStatus.textContent = "Network error."; }
+  }
+
+  async function adminSetStage() {
+    const sr = parseInt($("adminSetSuper").value, 10), rb = parseInt($("adminSetRebirth").value, 10);
+    const st = $("adminSetStatus");
+    st.className = "status";
+    if (!Number.isInteger(sr) || !Number.isInteger(rb) || sr < 1 || rb < 1) {
+      st.textContent = "Enter positive integers for both.";
+      return;
+    }
+    const key = getAdminKey();
+    if (!key) { st.className = "error"; st.textContent = "Enter the admin key above first."; return; }
+    st.textContent = "Setting…";
+    try {
+      const r = await fetch("/api/admin/set-stage", {
+        method: "POST",
+        headers: adminHeaders(),
+        body: JSON.stringify({ super_rebirth: sr, rebirth: rb }),
+      });
+      const data = await r.json();
+      if (r.status === 401) { st.className = "error"; st.textContent = data.error || "Admin key rejected."; return; }
+      if (!r.ok) { st.textContent = data.error || "Failed."; return; }
+      renderProgress(data);
+      st.textContent = `Current stage set to SR${data.super_rebirth}/R${data.rebirth}.`;
+    } catch (e) { st.textContent = "Network error."; }
+  }
+
+  $("adminLoadBtn").addEventListener("click", adminLoad);
+  $("adminAddBtn").addEventListener("click", () => adminRows.appendChild(makeAdminRow("", "")));
+  $("adminSaveBtn").addEventListener("click", adminSave);
+  $("adminSetStageBtn").addEventListener("click", adminSetStage);
+
+  // Wire admin selects into the shared filter loader.
+  const _origLoadFilters = loadFilters;
+  loadFilters = async function () {
+    await _origLoadFilters();
+    try {
+      const f = await (await fetch("/api/filters")).json();
+      // Only fill admin selects once (avoid duplicate options on refresh).
+      if (adminSuper.options.length <= 1) fillAdminSelects(f);
+      else adminColors = f.colors || [];
+      // Fill the upgrade-chips admin selects from the same filter source.
+      if (chipSuper.options.length <= 1) fillChipSelects(f);
+    } catch (e) {}
+  };
+
+  // ---------- Admin: edit upgrade chips per rebirth (task t_68b3a8b4) ----------
+  const chipSuper = $("chipSuper");
+  const chipRebirth = $("chipRebirth");
+  const chipStatus = $("chipStatus");
+  const chipEditor = $("chipEditor");
+  const chipValue = $("chipValue");
+  // Cache the live per-(SR,RB) chip map so save/load can read it without a refetch.
+  let chipMap = {};
+
+  function fillChipSelects(f) {
+    fillSelect(chipSuper, f.super_rebirth_cycles, (v) => "Cycle " + v);
+    fillSelect(chipRebirth, f.rebirth_levels, (v) => "Rebirth " + v);
+    chipMap = {};
+    (f.upgrade_chips || []).forEach((c) => {
+      chipMap[c.super_rebirth + "-" + c.rebirth] = c.chips;
+    });
+  }
+
+  async function chipLoad() {
+    const sr = chipSuper.value, rb = chipRebirth.value;
+    chipStatus.className = "status";
+    if (!sr || !rb) { chipStatus.textContent = "Choose a Super Rebirth and Rebirth cycle."; return; }
+    chipStatus.textContent = "Loading…";
+    try {
+      const r = await fetch(`/api/admin/chips?super_rebirth=${encodeURIComponent(sr)}&rebirth=${encodeURIComponent(rb)}`, {
+        headers: adminHeaders(),
+      });
+      const data = await r.json();
+      if (!r.ok) { chipStatus.textContent = data.error || "Load failed."; return; }
+      const key = sr + "-" + rb;
+      const current = (data.chips !== null && data.chips !== undefined)
+        ? data.chips
+        : (chipMap[key] !== undefined ? chipMap[key] : "");
+      chipValue.value = current === "" ? "" : current;
+      chipEditor.style.display = "block";
+      chipStatus.textContent = data.chips !== null && data.chips !== undefined
+        ? `Loaded chip total for SR${sr}/R${rb}.`
+        : `No chip value set for SR${sr}/R${rb} yet — enter one and save.`;
+    } catch (e) { chipStatus.textContent = "Network error."; }
+  }
+
+  async function chipSave() {
+    const sr = parseInt(chipSuper.value, 10), rb = parseInt(chipRebirth.value, 10);
+    if (!Number.isInteger(sr) || !Number.isInteger(rb)) { chipStatus.textContent = "Choose a tier first."; return; }
+    const raw = chipValue.value.trim();
+    if (raw === "") { chipStatus.textContent = "Enter a chip total (0 or greater)."; return; }
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < 0) { chipStatus.textContent = "Chips must be a number ≥ 0."; return; }
+    chipStatus.className = "status";
+    chipStatus.textContent = "Saving…";
+    try {
+      const r = await fetch("/api/admin/chips", {
+        method: "POST",
+        headers: adminHeaders(),
+        body: JSON.stringify({ super_rebirth: sr, rebirth: rb, chips: n }),
+      });
+      const data = await r.json();
+      if (!r.ok) { chipStatus.textContent = data.error || "Save failed."; return; }
+      chipMap[sr + "-" + rb] = data.chips;
+      chipStatus.textContent = `Saved ${Number(data.chips).toLocaleString("en-US")} chips to SR${sr}/R${rb}.`;
+      // Refresh the stage-detail panel if it is showing this tier.
+      if (lastCycleUsage) loadFilters(); // refresh cached filter chip map
+    } catch (e) { chipStatus.textContent = "Network error."; }
+  }
+
+  $("chipLoadBtn").addEventListener("click", chipLoad);
+  $("chipSaveBtn").addEventListener("click", chipSave);
+
+  // ---------- Admin: edit rebirth credit cost (task t_51f43099) ----------
+  const costRebirth = $("costRebirth");
+  const costStatus = $("costStatus");
+  const costEditor = $("costEditor");
+  const costCredits = $("costCredits");
+  const costNova = $("costNova");
+  let costMap = {}; // cache: rebirth -> { credits, nova }
+
+  function fillCostSelect(costRows) {
+    costMap = {};
+    (costRows || []).forEach((c) => {
+      costMap[c.rebirth] = { credits: c.credits, nova: c.nova };
+      const o = document.createElement("option");
+      o.value = c.rebirth;
+      o.textContent = "Rebirth " + c.rebirth;
+      costRebirth.appendChild(o);
+    });
+  }
+
+  async function costLoad() {
+    const rb = costRebirth.value;
+    costStatus.className = "status";
+    if (!rb) { costStatus.textContent = "Choose a rebirth level."; return; }
+    costStatus.textContent = "Loading…";
+    try {
+      const r = await fetch("/api/admin/rebirth-cost");
+      const data = await r.json();
+      if (!r.ok) { costStatus.textContent = data.error || "Load failed."; return; }
+      // Populate the dropdown from the full table the first time.
+      if (costRebirth.options.length <= 1) fillCostSelect(data.cost);
+      const row = (data.cost || []).find((c) => String(c.rebirth) === String(rb));
+      if (!row) { costStatus.textContent = "No cost row for that level."; return; }
+      costCredits.value = row.credits !== null && row.credits !== undefined ? row.credits : "";
+      costNova.value = row.nova !== null && row.nova !== undefined ? row.nova : "";
+      costEditor.style.display = "block";
+      costStatus.textContent = `Loaded Rebirth ${rb}: ${Number(row.credits).toLocaleString("en-US")} credits.`;
+    } catch (e) { costStatus.textContent = "Network error."; }
+  }
+
+  async function costSave() {
+    const rb = parseInt(costRebirth.value, 10);
+    if (!Number.isInteger(rb)) { costStatus.textContent = "Choose a level first."; return; }
+    const rawCredits = costCredits.value.trim();
+    if (rawCredits === "") { costStatus.textContent = "Enter the required credits (0 or greater)."; return; }
+    const n = Number(rawCredits);
+    if (!Number.isFinite(n) || n < 0) { costStatus.textContent = "Credits must be a number ≥ 0."; return; }
+    const rawNova = costNova.value.trim();
+    const payload = { rebirth: rb, credits: n };
+    if (rawNova !== "") {
+      const nv = Number(rawNova);
+      if (!Number.isFinite(nv) || nv < 0) { costStatus.textContent = "Nova must be a number ≥ 0 (or blank)."; return; }
+      payload.nova = nv;
+    }
+    costStatus.className = "status";
+    costStatus.textContent = "Saving…";
+    try {
+      const r = await fetch("/api/admin/rebirth-cost", {
+        method: "POST",
+        headers: adminHeaders(),
+        body: JSON.stringify(payload),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        // 401 means a key is set and missing/invalid — surface it clearly.
+        costStatus.textContent = (r.status === 401 ? "Admin key required. " : "") + (data.error || "Save failed.");
+        return;
+      }
+      costStatus.textContent = `Saved Rebirth ${rb}: ${Number(data.credits).toLocaleString("en-US")} credits.`;
+      // Refresh the cached cost curve so the stage-detail panel updates live.
+      loadFilters();
+    } catch (e) { costStatus.textContent = "Network error."; }
+  }
+
+  $("costLoadBtn").addEventListener("click", costLoad);
+  $("costSaveBtn").addEventListener("click", costSave);
+
+  // ---------- Droid picker (select a specific droid, publish its ID) ----------
+  const droidPicker = $("droidPicker");
+  const droidPickerList = $("droidPickerList");
+  const droidPickerStatus = $("droidPickerStatus");
+  const selectedDroidTag = $("selectedDroidTag");
+  let rosterIds = [];
+
+  // Shared state for the cycle-usage highlight map + stage-detail output.
+  let currentStage = { super_rebirth: 1, rebirth: 1 };
+  let rebirthCost = {};
+
+  // Publish the selected droid ID so other components can consume it.
+  window.selectedDroidId = null;
+  function publishSelectedDroid(id) {
+    window.selectedDroidId = id;
+    selectedDroidTag.textContent = id || "—";
+    droidPickerStatus.className = "status";
+    droidPickerStatus.textContent = id ? `Selected: ${id}` : "";
+    document.dispatchEvent(new CustomEvent("droid:selected", { detail: { id } }));
+  }
+
+  function fillDroidPicker(ids) {
+    rosterIds = ids || [];
+    droidPickerList.innerHTML = "";
+    rosterIds.forEach((id) => {
+      const o = document.createElement("option");
+      o.value = id;
+      droidPickerList.appendChild(o);
+    });
+  }
+
+  function onDroidPickerChange() {
+    const v = droidPicker.value.trim();
+    if (!v) { publishSelectedDroid(null); return; }
+    // Only publish a valid roster ID (case-insensitive match).
+    const match = rosterIds.find((id) => id.toLowerCase() === v.toLowerCase());
+    if (match) {
+      droidPicker.value = match;
+      publishSelectedDroid(match);
+    } else {
+      droidPickerStatus.className = "error";
+      droidPickerStatus.textContent = `"${v}" is not in the roster.`;
+    }
+  }
+
+  droidPicker.addEventListener("change", onDroidPickerChange);
+  droidPicker.addEventListener("keydown", (e) => { if (e.key === "Enter") onDroidPickerChange(); });
+  $("droidPickerClear").addEventListener("click", () => {
+    droidPicker.value = "";
+    publishSelectedDroid(null);
+  });
+
+  async function loadRoster() {
+    try {
+      const f = await (await fetch("/api/filters")).json();
+      fillDroidPicker(f.droids || []);
+    } catch (e) {
+      droidPickerStatus.className = "error";
+      droidPickerStatus.textContent = "Failed to load droid roster.";
+    }
+  }
+
+
+  // ---------- Super rebirth cycle usage panel (task t_50383390 + t_729e956f) ----------
+  // Listens for the droid:selected event published by the picker and renders
+  // whether the droid is used in the current super rebirth cycle, plus the
+  // stages and colors required. The rebirths that require the droid are also
+  // highlighted in a 27-cell map, and clicking a cell shows its stage detail.
+  const cyclePanelBody = $("cyclePanelBody");
+  const cyclePanelSr = $("cyclePanelSr");
+  const cycleMapWrap = $("cycleMapWrap");
+  const cycleMap = $("cycleMap");
+  const cycleMapTag = $("cycleMapTag");
+  const cycleStageDetail = $("cycleStageDetail");
+  let lastCycleUsage = null; // most recent /api/droid-cycle payload
+  let lastCycle = 1;         // resolved super cycle for the map
+
+  function fmtCost(n) {
+    if (n === null || n === undefined || n === "") return "—";
+    return Number(n).toLocaleString("en-US");
+  }
+
+  // Build the 27-cell rebirth map for the current super cycle. matchRebirths
+  // is the Set of rebirth indices that require the selected droid (highlighted).
+  function renderCycleMap(cycle, matchRebirths) {
+    cyclePanelSr.textContent = cycle;
+    cycleMapWrap.style.display = "block";
+    const curRb = currentStage.super_rebirth === cycle ? currentStage.rebirth : null;
+    cycleMap.innerHTML = "";
+    let matchCount = 0;
+    for (let r = 1; r <= 27; r++) {
+      const isMatch = matchRebirths && matchRebirths.has(r);
+      if (isMatch) matchCount++;
+      const cell = document.createElement("div");
+      cell.className = "map-cell";
+      if (isMatch) {
+        cell.classList.add("match");
+        const badge = document.createElement("div");
+        badge.className = "match-badge";
+        badge.textContent = "✓";
+        badge.title = "Requires the selected droid";
+        cell.appendChild(badge);
+      }
+      if (curRb !== null && r === curRb) cell.classList.add("current");
+      if (curRb !== null && r < curRb) cell.classList.add("past");
+      cell.innerHTML +=
+        `<div class="rb-num">R${r}</div>` +
+        `<div class="mini-chips"></div>`;
+      cell.addEventListener("click", () => renderStageDetail(cycle, r, isMatch));
+      cycleMap.appendChild(cell);
+    }
+    cycleMapTag.textContent =
+      matchCount + " of 27 rebirth" + (matchCount === 1 ? "" : "s") + " need it";
+  }
+
+  // Fetch the 3 droids for one stage and render the detail output (the SPR /
+  // Stage Detail view): exact droid names + colors + rebirth cost.
+  async function renderStageDetail(cycle, rebirth, isMatch) {
+    cycleStageDetail.style.display = "block";
+    cycleStageDetail.innerHTML =
+      `<div class="sd-head">Loading stage SR${cycle} · R${rebirth}…</div>`;
+    try {
+      const r = await fetch(
+        `/api/droids?super_rebirth=${encodeURIComponent(cycle)}&rebirth=${encodeURIComponent(rebirth)}`
+      );
+      const data = await r.json();
+      if (!r.ok) {
+        cycleStageDetail.innerHTML =
+          `<div class="error">${escapeHtml(data.error || "Failed to load stage.")}</div>`;
+        return;
+      }
+      const rows = data.droids.map((d) =>
+        `<div class="sd-droid">` +
+        `<span class="swatch" style="background:${colorHex(d.color)}"></span>` +
+        `<span class="sd-name">${escapeHtml(d.name)}</span>` +
+        `<span class="sd-color">${escapeHtml(d.color)}</span></div>`
+      ).join("");
+      const cost = rebirthCost[rebirth] || {};
+      const costHtml =
+        `<div class="sd-cost">Rebirth cost — Credits: <b>${fmtCost(cost.credits)}</b></div>` +
+        `<div class="sd-cost">Nova Crystals Gained: <b>${fmtCost(cost.nova)}</b></div>`;
+      const chipKey = cycle + "-" + rebirth;
+      const chipVal = chipMap[chipKey];
+      const chipHtml =
+        `<div class="sd-cost">Upgrade chips: <b>${chipVal !== undefined ? Number(chipVal).toLocaleString("en-US") : "—"}</b></div>`;
+      const requiresNote = isMatch
+        ? ` <b style="color:var(--good)">— requires the selected droid</b>`
+        : "";
+      cycleStageDetail.innerHTML =
+        `<div class="sd-head">Super Rebirth <b>${cycle}</b> · Rebirth <b>${rebirth}</b>${requiresNote} — needs ${data.droids.length} droid(s):</div>` +
+        rows + costHtml + chipHtml;
+    } catch (e) {
+      cycleStageDetail.innerHTML = `<div class="error">Network error loading stage detail.</div>`;
+    }
+  }
+
+  function renderCycleUsage(data) {
+    cyclePanelSr.textContent = data.super_rebirth;
+    lastCycleUsage = data;
+    lastCycle = data.super_rebirth;
+    if (data.in_current_cycle) {
+      const stageList = document.createElement("div");
+      stageList.className = "droid-list";
+      const matchRebirths = new Set(data.stages.map((s) => s.rebirth));
+      data.stages.forEach((s) => {
+        const el = document.createElement("div");
+        el.className = "droid";
+        el.style.cursor = "pointer";
+        el.innerHTML =
+          `<span class="swatch" style="background:${colorHex(s.color)}"></span>` +
+          `<div><div class="name">Rebirth ${s.rebirth}</div>` +
+          `<div class="color">${escapeHtml(s.color)}</div></div>`;
+        el.addEventListener("click", () => renderStageDetail(s.superRebirth, s.rebirth, true));
+        stageList.appendChild(el);
+      });
+      const colorBadges = data.colors
+        .map(
+          (c) =>
+            `<span class="swatch" style="display:inline-block;vertical-align:middle;background:${colorHex(
+              c
+            )};margin-right:6px;"></span>${escapeHtml(c)}`
+        )
+        .join("&nbsp;&nbsp;");
+      const otherNote = data.used_in_other_cycles
+        ? `<div class="empty" style="margin-top:12px;">Also used in other super rebirth cycles (not shown here).</div>`
+        : "";
+      cyclePanelBody.innerHTML = "";
+      const head = document.createElement("div");
+      head.className = "results-head";
+      head.innerHTML =
+        `<div class="label">${escapeHtml(data.droid)} is used in this cycle</div>` +
+        `<div class="tag">${data.stages.length} stage${
+          data.stages.length === 1 ? "" : "s"
+        }</div>`;
+      const colorRow = document.createElement("div");
+      colorRow.className = "legend";
+      colorRow.innerHTML = `<span class="item">Colors needed:&nbsp;${colorBadges}</span>`;
+      cyclePanelBody.appendChild(head);
+      cyclePanelBody.appendChild(stageList);
+      cyclePanelBody.appendChild(colorRow);
+      cyclePanelBody.insertAdjacentHTML("beforeend", otherNote);
+      // Highlight the rebirths in the map.
+      renderCycleMap(data.super_rebirth, matchRebirths);
+    } else {
+      cyclePanelBody.innerHTML = "";
+      const notice = document.createElement("div");
+      notice.className = "placeholder";
+      notice.innerHTML = `&#9888;&#65039; <strong>${escapeHtml(
+        data.droid
+      )}</strong> is <strong>not used</strong> in the current super rebirth cycle (Super Rebirth ${data.super_rebirth}).`;
+      cyclePanelBody.appendChild(notice);
+      // Still show the full map (nothing highlighted) so the player sees the
+      // current cycle at a glance.
+      renderCycleMap(data.super_rebirth, new Set());
+    }
+  }
+
+  function clearCyclePanel() {
+    cyclePanelSr.textContent = "1";
+    cyclePanelBody.innerHTML =
+      `<div class="placeholder">Pick a droid above to see if it is used in the current cycle.</div>`;
+    cycleMapWrap.style.display = "none";
+    cycleStageDetail.style.display = "none";
+    lastCycleUsage = null;
+  }
+
+  // Render the "needed for remaining steps" summary (task t_b5c5e75a). This
+  // reuses the droid-cycle data already in the panel and augments it with the
+  // necessity calculation so the player can see whether the droid still needs
+  // to be obtained for the stages ahead (vs. already-cleared stages).
+  function renderNecessity(usage, necessity) {
+    const wrap = document.createElement("div");
+    wrap.className = "necessity-box";
+    const needed = necessity.needed;
+    const verdict = needed
+      ? `<span class="verdict yes">Still needed</span>`
+      : `<span class="verdict no">Fully satisfied</span>`;
+    const rem = necessity.remaining_stages || [];
+    let stageHtml = "";
+    if (rem.length) {
+      stageHtml =
+        `<div class="nec-sub">Upcoming stages still requiring it:</div>` +
+        `<div class="droid-list">` +
+        rem
+          .map(
+            (s) =>
+              `<div class="droid" style="cursor:pointer" data-sr="${s.super_rebirth}" data-rb="${s.rebirth}">` +
+              `<span class="swatch" style="background:${colorHex(s.color)}"></span>` +
+              `<div><div class="name">Rebirth ${s.rebirth}</div>` +
+              `<div class="color">${escapeHtml(s.color)}</div></div></div>`
+          )
+          .join("") +
+        `</div>`;
+    } else if (needed && necessity.current_stage) {
+      stageHtml = `<div class="empty">Required right now at Rebirth ${necessity.current_stage.rebirth} (${escapeHtml(necessity.current_stage.color)}).</div>`;
+    } else {
+      stageHtml = `<div class="empty">No upcoming stages require it in this cycle.</div>`;
+    }
+    const cleared = (necessity.cleared_stages || []).length;
+    wrap.innerHTML =
+      `<div class="nec-head">Remaining-need check (from your current Rebirth ${necessity.current_rebirth})</div>` +
+      `<div class="nec-verdict">${verdict} <span class="nec-droid">${escapeHtml(
+        usage.droid
+      )}</span></div>` +
+      stageHtml +
+      (cleared
+        ? `<div class="empty" style="margin-top:8px;">Already satisfied at ${cleared} earlier stage(s).</div>`
+        : ``);
+    // Wire stage clicks into the existing stage-detail viewer.
+    wrap.querySelectorAll(".droid[data-rb]").forEach((el) => {
+      el.addEventListener("click", () =>
+        renderStageDetail(
+          Number(el.dataset.sr),
+          Number(el.dataset.rb),
+          true
+        )
+      );
+    });
+    cyclePanelBody.appendChild(wrap);
+  }
+
+  async function loadCycleUsage(droidId) {
+    if (!droidId) {
+      clearCyclePanel();
+      return;
+    }
+    cyclePanelBody.innerHTML = `<div class="placeholder">Looking up ${escapeHtml(
+      droidId
+    )}…</div>`;
+    try {
+      const r = await fetch(
+        `/api/droid-cycle?droid=${encodeURIComponent(droidId)}`
+      );
+      const data = await r.json();
+      if (!r.ok) {
+        cyclePanelBody.innerHTML = `<div class="error">${
+          escapeHtml(data.error || "Lookup failed.")
+        }</div>`;
+        return;
+      }
+      renderCycleUsage(data);
+      // Augment with the remaining-need calculation, scoped to the player's
+      // actual current stage (falls back to DB player_stage if not loaded yet).
+      const qs =
+        currentStage && currentStage.super_rebirth
+          ? `&super_rebirth=${encodeURIComponent(
+              currentStage.super_rebirth
+            )}&rebirth=${encodeURIComponent(currentStage.rebirth)}`
+          : "";
+      try {
+        const nr = await fetch(
+          `/api/droid-necessity?droid=${encodeURIComponent(droidId)}${qs}`
+        );
+        const nd = await nr.json();
+        if (nr.ok) renderNecessity(data, nd);
+      } catch (_) {
+        /* necessity is supplementary; ignore network slips */
+      }
+    } catch (e) {
+      cyclePanelBody.innerHTML = `<div class="error">Network error loading cycle usage.</div>`;
+    }
+  }
+
+  document.addEventListener("droid:selected", (e) => {
+    loadCycleUsage(e.detail && e.detail.id);
+  });
+
+  // ---------- Droid selector adjacent to the super-rebirth dropdown (task t_dc454756) ----------
+  // A plain <select> listing the full roster, placed right beside the Super
+  // Rebirth / Rebirth Cycle dropdowns. Selecting a droid publishes the same
+  // selected-droid event the top "Pick a droid" box does, so the existing
+  // cycle-highlight map + "Remaining-need check" drive off it unchanged. This
+  // keeps the in-game droid check next to the super-rebirth controls.
+  const cycleDroidSel = $("cycleDroid");
+
+  function fillCycleDroid(ids) {
+    cycleDroidSel.length = 1; // keep the placeholder option
+    (ids || []).forEach((id) => {
+      const o = document.createElement("option");
+      o.value = id;
+      o.textContent = id;
+      cycleDroidSel.appendChild(o);
+    });
+  }
+
+  cycleDroidSel.addEventListener("change", () => {
+    const v = cycleDroidSel.value;
+    if (v) {
+      publishSelectedDroid(v);
+      // Keep the top picker in sync too (case-identical since it's the same roster id).
+      droidPicker.value = v;
+      droidPickerStatus.className = "status";
+      droidPickerStatus.textContent = `Selected: ${v}`;
+    } else {
+      publishSelectedDroid(null);
+      droidPicker.value = "";
+      droidPickerStatus.textContent = "";
+    }
+  });
+
+  // Populate from the same roster source the top picker uses.
+  loadRoster().then(() => fillCycleDroid(rosterIds));
+
+  // Restore any admin key saved in this browser so the save buttons work
+  // immediately on reload (the key itself is never sent anywhere except the
+  // X-Admin-Key header to the server).
+  (function restoreAdminKey() {
+    const saved = localStorage.getItem("droidAdminKey");
+    const el = $("adminKey");
+    if (saved && el) el.value = saved;
+  })();
+
+  loadFilters();
+  loadProgress();
+  loadRoster();
+</script>
+</body>
+</html>
