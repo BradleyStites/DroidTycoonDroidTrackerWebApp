@@ -5,7 +5,10 @@ stage of the Droid Tycoon grind, built from the project's two workbooks
 (`Driod Tycoon Rebirth.xlsx` + `Droid Tycoon Stats.xlsx`).
 
 ## Image
+-Main Tracker Dashboard
 ![Screenshot](https://github.com/BradleyStites/DroidTycoonDroidTrackerWebApp/blob/main/Screenshot.png "Screenshot")
+-Admin Panel
+ **WIP**
 
 ## Open it
 Double-click **`index.html`** (or open it in any browser). No server needed —
