@@ -6,8 +6,7 @@ stage of the Droid Tycoon grind, built from the project's two workbooks
 or spreadsheets can be found on my google drive, just make a copy if you
 prefer a simpler method of tracking.
 
-[Do I Need It?]([https://github.com](https://docs.google.com/spreadsheets/d/1us4tKuFXJ9LJVVsu1ZOyyu-ENkWXz3zUGQ-jHMCNpQc/edit?usp=sharing))
-
+https://docs.google.com/spreadsheets/d/1us4tKuFXJ9LJVVsu1ZOyyu-ENkWXz3zUGQ-jHMCNpQc/edit?usp=sharing
 
 ## Image
 - Main Tracker Dashboard
