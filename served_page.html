@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Droid Tycoon — Needed Droids Tracker</title>
+<style>
+  :root {
+    --bg: #0e1116;
+    --panel: #161b22;
+    --panel-2: #1c232c;
+    --border: #2a313c;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --good: #3fb950;
+    --warn: #d29922;
+    --done: #30363d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.45 ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+  }
+  header {
+    padding: 16px 20px; border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, #11161d, #0e1116);
+    position: sticky; top: 0; z-index: 5;
+  }
+  header h1 { margin: 0; font-size: 18px; letter-spacing: .3px; }
+  header .sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .totals { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 10px; }
+  .totals .t { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; }
+  .totals .t b { color: var(--accent); font-size: 16px; }
+  .totals .t span { color: var(--muted); font-size: 11px; display: block; }
+
+  /* Live data status pill (task t_b8b899c3) */
+  .live-status { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 12px; color: var(--muted); }
+  .live-status .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--warn); box-shadow: 0 0 0 3px rgba(210,153,34,.18); flex: none; }
+  .live-status.live .dot { background: var(--good); box-shadow: 0 0 0 3px rgba(63,185,80,.18); }
+  .live-status.error .dot { background: #f85149; box-shadow: 0 0 0 3px rgba(248,81,73,.18); }
+  .live-status button { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 3px 9px; font-size: 11px; cursor: pointer; }
+  .live-status button:hover { border-color: var(--accent); }
+  .live-status .spin { display: inline-block; width: 9px; height: 9px; border: 2px solid var(--muted); border-top-color: transparent; border-radius: 50%; animation: ls-spin .7s linear infinite; }
+  @keyframes ls-spin { to { transform: rotate(360deg); } }
+
+  main { padding: 16px 20px 60px; display: grid; grid-template-columns: 1fr 340px; gap: 18px; }
+  @media (max-width: 920px) { main { grid-template-columns: 1fr; } }
+
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+  .panel h2 { margin: 0 0 10px; font-size: 14px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
+
+  /* Current progress controls */
+  .controls { display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 12px; }
+  .controls label { font-size: 11px; color: var(--muted); display: block; margin-bottom: 4px; }
+  select, input[type=number] {
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 8px; font-size: 13px;
+  }
+
+  /* Super-cycle grid */
+  .cycles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  @media (max-width: 1100px) { .cycles { grid-template-columns: repeat(2, 1fr); } }
+  .cycle { background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 8px; }
+  .cycle h3 { margin: 0 0 8px; font-size: 12px; color: var(--accent); text-align: center; }
+  .stagegrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+  .cell {
+    border: 1px solid var(--border); border-radius: 5px; padding: 5px 3px; text-align: center;
+    cursor: pointer; background: #11161d; transition: .12s; user-select: none;
+  }
+  .cell:hover { border-color: var(--accent); }
+  .cell .rb { font-size: 10px; color: var(--muted); }
+  .cell .chips { display: flex; gap: 2px; justify-content: center; margin-top: 3px; }
+  .swatch { width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(255,255,255,.15); }
+  .cell.past { opacity: .35; }
+  .cell.current { outline: 2px solid var(--good); background: #11261a; }
+  .cell.selected { outline: 2px solid var(--accent); }
+  .cell.droid-match { outline: 2px solid var(--warn); background: #2a2113; }
+
+  /* Color map */
+  .color-base    { background: #9aa0a6; }
+  .color-default { background: #c9d1d9; }
+  .color-gold    { background: linear-gradient(135deg,#f5c518,#b8860b); }
+  .color-diamond { background: linear-gradient(135deg,#bff4ff,#5fd0ee); }
+  .color-rainbow { background: linear-gradient(135deg,#ff5d5d,#ffd24d,#5dff8f,#5db8ff,#c45dff); }
+  .color-beskar  { background: linear-gradient(135deg,#d7dde3,#9aa7b3); }
+  .color-galactic{ background: linear-gradient(135deg,#b15be0,#6f2db8); }
+
+  /* Detail / upcoming / legend */
+  .detail-droid { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .detail-droid:last-child { border-bottom: none; }
+  .detail-droid .name { flex: 1; }
+  .detail-droid .color-tag { font-size: 11px; color: var(--muted); }
+  .cost { margin-top: 10px; font-size: 12px; color: var(--muted); }
+  .cost b { color: var(--text); }
+
+  .upcoming-item { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--border); }
+  .upcoming-item:last-child { border-bottom: none; }
+  .upcoming-item .stage-id { width: 64px; font-size: 11px; color: var(--accent); flex-shrink: 0; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 8px; }
+  .legend .item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+  .legend .swatch { width: 14px; height: 14px; }
+
+  .checklist .item { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+  .checklist .count { font-size: 11px; color: var(--muted); margin-left: auto; }
+  .checklist input { accent-color: var(--good); }
+
+  .quarantine { color: var(--warn); font-size: 11px; margin-top: 8px; }
+  .note { color: var(--muted); font-size: 11px; margin-top: 8px; }
+  .section-gap { margin-top: 18px; }
+
+  /* Droid-necessity verdict (task t_e9543457) — mirrors webui necessity-box */
+  .necessity-box { margin-top: 10px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px; background: #11161d; }
+  .nec-head { font-size: 11px; letter-spacing: .03em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+  .nec-verdict { font-size: 15px; font-weight: 700; margin-bottom: 10px; }
+  .nec-verdict .verdict.yes { color: var(--warn); }
+  .nec-verdict .verdict.no  { color: var(--good); }
+  .nec-droid { color: var(--text); font-weight: 700; }
+  .nec-sub { font-size: 12px; color: var(--muted); margin: 6px 0 8px; }
+  .necessity-box .droid { background: #161b22; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Droid Tycoon — Needed Droids Tracker</h1>
+  <div class="sub">Which droids are required for each rebirth stage. Data extracted from the project workbooks (REBIRTH_DATA_SCHEMA.md).</div>
+  <div class="totals" id="totals"></div>
+  <div class="live-status" id="live-status" title="Live DB sync status">
+    <span class="dot"></span>
+    <span id="live-text">Loading live data&hellip;</span>
+    <button id="live-refresh" type="button" title="Re-fetch now">Refresh</button>
+  </div>
+</header>
+
+<main>
+  <div>
+    <div class="panel">
+      <h2>Rebirth Map — click a stage to inspect</h2>
+      <div class="controls">
+        <div>
+          <label>Current Super Rebirth</label>
+          <select id="cur-sr"></select>
+        </div>
+        <div>
+          <label>Current Rebirth</label>
+          <select id="cur-rb"></select>
+        </div>
+        <div>
+          <label>Droid Selection</label>
+          <select id="droid-sel"><option value="">— Select a droid —</option></select>
+        </div>
+      </div>
+      <div class="cycles" id="cycles"></div>
+      <div class="note" id="droid-usage"></div>
+      <div class="note" id="progress-note"></div>
+    </div>
+  </div>
+
+  <div>
+    <div class="panel">
+      <h2>Stage Detail</h2>
+      <div id="detail"></div>
+    </div>
+
+    <div class="panel section-gap">
+      <h2>Upcoming Needed Droids</h2>
+      <div id="upcoming"></div>
+    </div>
+
+    <div class="panel section-gap">
+      <h2>Droid Checklist (all stages)</h2>
+      <div class="checklist" id="checklist"></div>
+      <div class="note" id="checklist-note"></div>
+    </div>
+
+    <div class="panel section-gap">
+      <h2>Color Legend</h2>
+      <div class="legend" id="legend"></div>
+      <div class="quarantine" id="quarantine"></div>
+    </div>
+  </div>
+</main>
+
+<script id="data" type="application/json">{"source":{"content_workbook":"Droid Tycoon Rebirth Tracking System/Driod Tycoon Rebirth.xlsx","stats_workbook":"Droid Tycoon Stat Tracking/Droid Tycoon Stats.xlsx","note":"Filename 'Driod' is a typo in the original file and is preserved as-is."},"valid_colors":["Base","Default","Gold","Diamond","Rainbow","Beskar"],"droids_per_stage":3,"super_cycle_range":[1,4],"rebirth_range":[1,27],"totals":{"super_cycles":4,"rebirths_per_cycle":27,"stages":108,"droids_total":322,"distinct_droid_names":63,"quarantined_rows":2},"stages":{"1-1":{"super_rebirth":1,"rebirth":1,"droids":[{"droid_name":"Pit","droid_color":"Base"},{"droid_name":"CB","droid_color":"Base"},{"droid_name":"DRK-1 Probe","droid_color":"Base"}],"cost":{"credits":150000.0,"nova":null}},"1-2":{"super_rebirth":1,"rebirth":2,"droids":[{"droid_name":"BDX Explorer","droid_color":"Base"},{"droid_name":"Bal-Core","droid_color":"Base"},{"droid_name":"2BB","droid_color":"Base"}],"cost":{"credits":975000.0,"nova":null}},"1-3":{"super_rebirth":1,"rebirth":3,"droids":[{"droid_name":"A-LT","droid_color":"Base"},{"droid_name":"B-U4D","droid_color":"Base"},{"droid_name":"R9","droid_color":"Gold"}],"cost":{"credits":2950000.0,"nova":null}},"1-4":{"super_rebirth":1,"rebirth":4,"droids":[{"droid_name":"ARG","droid_color":"Gold"},{"droid_name":"B1 Security","droid_color":"Gold"},{"droid_name":"Ground Mech","droid_color":"Base"}],"cost":{"credits":5350000.0,"nova":null}},"1-5":{"super_rebirth":1,"rebirth":5,"droids":[{"droid_name":"B-U4D","droid_color":"Gold"},{"droid_name":"HOV-R","droid_color":"Gold"},{"droid_name":"R9","droid_color":"Diamond"}],"cost":{"credits":9850000.0,"nova":null}},"1-6":{"super_rebirth":1,"rebirth":6,"droids":[{"droid_name":"Ground Mech","droid_color":"Gold"},{"droid_name":"ARG","droid_color":"Diamond"},{"droid_name":"A-LT","droid_color":"Diamond"}],"cost":{"credits":14500000.0,"nova":null}},"1-7":{"super_rebirth":1,"rebirth":7,"droids":[{"droid_name":"BB","droid_color":"Diamond"},{"droid_name":"B1 Security","droid_color":"Diamond"},{"droid_name":"B-U4D","droid_color":"Diamond"}],"cost":{"credits":36000000.0,"nova":null}},"1-8":{"super_rebirth":1,"rebirth":8,"droids":[{"droid_name":"Util-Tec","droid_color":"Gold"},{"droid_name":"LO","droid_color":"Gold"},{"droid_name":"HOV-R","droid_color":"Diamond"}],"cost":{"credits":89000000.0,"nova":null}},"1-9":{"super_rebirth":1,"rebirth":9,"droids":[{"droid_name":"Ground Mech","droid_color":"Rainbow"},{"droid_name":"R6","droid_color":"Gold"},{"droid_name":"Trak-R","droid_color":"Gold"}],"cost":{"credits":220000000.0,"nova":null}},"1-10":{"super_rebirth":1,"rebirth":10,"droids":[{"droid_name":"LO","droid_color":"Rainbow"},{"droid_name":"Haul-R","droid_color":"Rainbow"},{"droid_name":"Strike-Orb","droid_color":"Gold"}],"cost":{"credits":550000000.0,"nova":null}},"1-11":{"super_rebirth":1,"rebirth":11,"droids":[{"droid_name":"Amp Walker","droid_color":"Rainbow"},{"droid_name":"B1 Heavy","droid_color":"Rainbow"},{"droid_name":"BB9","droid_color":"Base"}],"cost":{"credits":1360000000.0,"nova":null}},"1-12":{"super_rebirth":1,"rebirth":12,"droids":[{"droid_name":"Proto Roller","droid_color":"Gold"},{"droid_name":"Mono-Wlkr","droid_color":"Base"},{"droid_name":"Mecha Droid","droid_color":"Base"}],"cost":{"credits":3400000000.0,"nova":11.0}},"1-13":{"super_rebirth":1,"rebirth":13,"droids":[{"droid_name":"R7","droid_color":"Base"},{"droid_name":"Cyclo-Grav","droid_color":"Base"},{"droid_name":"B2-RP","droid_color":"Base"}],"cost":{"credits":8450000000.0,"nova":16.0}},"1-14":{"super_rebirth":1,"rebirth":14,"droids":[{"droid_name":"Opti-Strk","droid_color":"Base"},{"droid_name":"Mono-Wlkr","droid_color":"Gold"},{"droid_name":"Mecha Droid","droid_color":"Gold"}],"cost":{"credits":21000000000.0,"nova":22.0}},"1-15":{"super_rebirth":1,"rebirth":15,"droids":[{"droid_name":"B2-RP","droid_color":"Gold"},{"droid_name":"BB9","droid_color":"Gold"},{"droid_name":"R7","droid_color":"Gold"}],"cost":{"credits":21000000000.0,"nova":29.0}},"1-16":{"super_rebirth":1,"rebirth":16,"droids":[{"droid_name":"Opti-Strk","droid_color":"Gold"},{"droid_name":"Mono-Wlkr","droid_color":"Diamond"},{"droid_name":"Proto Roller","droid_color":"Diamond"}],"cost":{"credits":52000000000.0,"nova":37.0}},"1-17":{"super_rebirth":1,"rebirth":17,"droids":[{"droid_name":"B2-RP","droid_color":"Diamond"},{"droid_name":"Cyclo-Grav","droid_color":"Diamond"},{"droid_name":"Mecha Droid","droid_color":"Diamond"}],"cost":{"credits":130000000000.0,"nova":46.0}},"1-18":{"super_rebirth":1,"rebirth":18,"droids":[{"droid_name":"BB9","droid_color":"Diamond"},{"droid_name":"R7","droid_color":"Diamond"},{"droid_name":"Mono-Wlkr","droid_color":"Rainbow"}],"cost":{"credits":325000000000.0,"nova":56.0}},"1-19":{"super_rebirth":1,"rebirth":19,"droids":[{"droid_name":"B2-RP","droid_color":"Rainbow"},{"droid_name":"Cyclo-Grav","droid_color":"Rainbow"},{"droid_name":"Proto Roller","droid_color":"Rainbow"}],"cost":{"credits":810000000000.0,"nova":67.0}},"1-20":{"super_rebirth":1,"rebirth":20,"droids":[{"droid_name":"R7","droid_color":"Rainbow"},{"droid_name":"Opti-Strk","droid_color":"Rainbow"},{"droid_name":"Mecha Droid","droid_color":"Rainbow"}],"cost":{"credits":2000000000000.0,"nova":79.0}},"1-21":{"super_rebirth":1,"rebirth":21,"droids":[{"droid_name":"BB","droid_color":"Beskar"},{"droid_name":"BB-Walker","droid_color":"Beskar"},{"droid_name":"Ground Mech","droid_color":"Beskar"}],"cost":{"credits":3000000000000.0,"nova":92.0}},"1-22":{"super_rebirth":1,"rebirth":22,"droids":[{"droid_name":"Amp Walker","droid_color":"Beskar"},{"droid_name":"B1 Heavy","droid_color":"Beskar"},{"droid_name":"Proto Roller","droid_color":"Beskar"}],"cost":{"credits":4500000000000.0,"nova":106.0}},"1-23":{"super_rebirth":1,"rebirth":23,"droids":[{"droid_name":"Opti-Strk","droid_color":"Beskar"},{"droid_name":"Mono-Wlkr","droid_color":"Beskar"},{"droid_name":"R7","droid_color":"Beskar"}],"cost":{"credits":6000000000000.0,"nova":121.0}},"1-24":{"super_rebirth":1,"rebirth":24,"droids":[{"droid_name":"BB9","droid_color":"Beskar"},{"droid_name":"Cyclo-Grav","droid_color":"Beskar"},{"droid_name":"Mo-Trak","droid_color":"Base"}],"cost":{"credits":9000000000000.0,"nova":137.0}},"1-25":{"super_rebirth":1,"rebirth":25,"droids":[{"droid_name":"B2-RP","droid_color":"Beskar"},{"droid_name":"IG","droid_color":"Base"},{"droid_name":"Drft-R","droid_color":"Gold"}],"cost":{"credits":13500000000000.0,"nova":154.0}},"1-26":{"super_rebirth":1,"rebirth":26,"droids":[{"droid_name":"Cyclens","droid_color":"Gold"},{"droid_name":"Loadlifter","droid_color":"Diamond"},{"droid_name":"Ric-1200","droid_color":"Rainbow"}],"cost":{"credits":21000000000000.0,"nova":172.0}},"1-27":{"super_rebirth":1,"rebirth":27,"droids":[{"droid_name":"KX","droid_color":"Diamond"},{"droid_name":"Tri-Tek","droid_color":"Rainbow"},{"droid_name":"Snow Mouse","droid_color":"Beskar"}],"cost":{"credits":32000000000000.0,"nova":191.0}},"2-1":{"super_rebirth":2,"rebirth":1,"droids":[{"droid_name":"Mouse","droid_color":"Base"},{"droid_name":"Gonk","droid_color":"Base"},{"droid_name":"ID10","droid_color":"Base"}],"cost":{"credits":150000.0,"nova":null}},"2-2":{"super_rebirth":2,"rebirth":2,"droids":[{"droid_name":"Roll-R","droid_color":"Base"},{"droid_name":"Nav-Ex","droid_color":"Base"},{"droid_name":"Senate Hovercam","droid_color":"Base"}],"cost":{"credits":975000.0,"nova":null}},"2-3":{"super_rebirth":2,"rebirth":3,"droids":[{"droid_name":"R4","droid_color":"Base"},{"droid_name":"Vect-Arm","droid_color":"Base"},{"droid_name":"BDX Explorer","droid_color":"Gold"}],"cost":{"credits":2950000.0,"nova":null}},"2-4":{"super_rebirth":2,"rebirth":4,"droids":[{"droid_name":"2BB","droid_color":"Gold"},{"droid_name":"Bal-Core","droid_color":"Gold"},{"droid_name":"Orb Walker","droid_color":"Base"}],"cost":{"credits":5350000.0,"nova":null}},"2-5":{"super_rebirth":2,"rebirth":5,"droids":[{"droid_name":"R4","droid_color":"Gold"},{"droid_name":"Vect-Arm","droid_color":"Gold"},{"droid_name":"Nav-Ex","droid_color":"Gold"}],"cost":{"credits":9850000.0,"nova":null}},"2-6":{"super_rebirth":2,"rebirth":6,"droids":[{"droid_name":"Gunrunner","droid_color":"Base"},{"droid_name":"2BB","droid_color":"Diamond"},{"droid_name":"Bal-Core","droid_color":"Diamond"}],"cost":{"credits":14500000.0,"nova":null}},"2-7":{"super_rebirth":2,"rebirth":7,"droids":[{"droid_name":"Roll-R","droid_color":"Diamond"},{"droid_name":"BDX Explorer","droid_color":"Diamond"},{"droid_name":"R2","droid_color":"Gold"}],"cost":{"credits":36000000.0,"nova":null}},"2-8":{"super_rebirth":2,"rebirth":8,"droids":[{"droid_name":"R4","droid_color":"Diamond"},{"droid_name":"B2 Super","droid_color":"Gold"},{"droid_name":"Gunrunner","droid_color":"Gold"}],"cost":{"credits":89000000.0,"nova":null}},"2-9":{"super_rebirth":2,"rebirth":9,"droids":[{"droid_name":"Nav-Ex","droid_color":"Rainbow"},{"droid_name":"Amp Walker","droid_color":"Gold"},{"droid_name":"Strike-Orb","droid_color":"Gold"}],"cost":{"credits":220000000.0,"nova":null}},"2-10":{"super_rebirth":2,"rebirth":10,"droids":[{"droid_name":"Vect-Arm","droid_color":"Rainbow"},{"droid_name":"R2","droid_color":"Diamond"},{"droid_name":"B2 Super","droid_color":"Diamond"}],"cost":{"credits":550000000.0,"nova":null}},"2-11":{"super_rebirth":2,"rebirth":11,"droids":[{"droid_name":"Strike-Orb","droid_color":"Diamond"},{"droid_name":"B2 Heavy","droid_color":"Diamond"},{"droid_name":"Bal-Core","droid_color":"Rainbow"}],"cost":{"credits":1360000000.0,"nova":null}},"2-12":{"super_rebirth":2,"rebirth":12,"droids":[{"droid_name":"Orb Walker","droid_color":"Rainbow"},{"droid_name":"R2","droid_color":"Rainbow"},{"droid_name":"BB9","droid_color":"Base"}],"cost":{"credits":3400000000.0,"nova":11.0}},"2-13":{"super_rebirth":2,"rebirth":13,"droids":[{"droid_name":"B2 Super","droid_color":"Rainbow"},{"droid_name":"Mecha Droid","droid_color":"Base"},{"droid_name":"Proto Roller","droid_color":"Base"}],"cost":{"credits":8450000000.0,"nova":16.0}},"2-14":{"super_rebirth":2,"rebirth":14,"droids":[{"droid_name":"B2 Heavy","droid_color":"Rainbow"},{"droid_name":"B2-RP","droid_color":"Gold"},{"droid_name":"R7","droid_color":"Gold"}],"cost":{"credits":21000000000.0,"nova":22.0}},"2-15":{"super_rebirth":2,"rebirth":15,"droids":[{"droid_name":"Strike-Orb","droid_color":"Rainbow"},{"droid_name":"BB9","droid_color":"Base"},{"droid_name":"Proto Roller","droid_color":"Gold"}],"cost":{"credits":21000000000.0,"nova":29.0}},"2-16":{"super_rebirth":2,"rebirth":16,"droids":[{"droid_name":"B2-RP","droid_color":"Diamond"},{"droid_name":"Amp Walker","droid_color":"Rainbow"},{"droid_name":"Mecha Droid","droid_color":"Gold"}],"cost":{"credits":52000000000.0,"nova":37.0}},"2-17":{"super_rebirth":2,"rebirth":17,"droids":[{"droid_name":"Opti-Pod","droid_color":"Rainbow"},{"droid_name":"R7","droid_color":"Diamond"},{"droid_name":"Mono-Wlkr","droid_color":"Gold"}],"cost":{"credits":130000000000.0,"nova":46.0}},"2-18":{"super_rebirth":2,"rebirth":18,"droids":[{"droid_name":"BB9","droid_color":"Diamond"},{"droid_name":"Proto Roller","droid_color":"Diamond"}],"cost":{"credits":325000000000.0,"nova":56.0}},"2-19":{"super_rebirth":2,"rebirth":19,"droids":[{"droid_name":"Mecha Droid","droid_color":"Diamond"},{"droid_name":"R7","droid_color":"Rainbow"},{"droid_name":"B2-RP","droid_color":"Rainbow"}],"cost":{"credits":810000000000.0,"nova":67.0}},"2-20":{"super_rebirth":2,"rebirth":20,"droids":[{"droid_name":"Mono-Wlkr","droid_color":"Rainbow"},{"droid_name":"Opti-Strk","droid_color":"Rainbow"},{"droid_name":"Cyclo-Grav","droid_color":"Rainbow"}],"cost":{"credits":2000000000000.0,"nova":79.0}},"2-21":{"super_rebirth":2,"rebirth":21,"droids":[{"droid_name":"LO","droid_color":"Beskar"},{"droid_name":"R6","droid_color":"Beskar"},{"droid_name":"Haul-R","droid_color":"Beskar"}],"cost":{"credits":3000000000000.0,"nova":92.0}},"2-22":{"super_rebirth":2,"rebirth":22,"droids":[{"droid_name":"Sen-Tri","droid_color":"Beskar"},{"droid_name":"Strike-Orb","droid_color":"Beskar"},{"droid_name":"Proto Roller","droid_color":"Beskar"}],"cost":{"credits":4500000000000.0,"nova":106.0}},"2-23":{"super_rebirth":2,"rebirth":23,"droids":[{"droid_name":"BB9","droid_color":"Beskar"},{"droid_name":"Cyclo-Grav","droid_color":"Beskar"},{"droid_name":"B2-RP","droid_color":"Beskar"}],"cost":{"credits":6000000000000.0,"nova":121.0}},"2-24":{"super_rebirth":2,"rebirth":24,"droids":[{"droid_name":"Opti-Strk","droid_color":"Beskar"},{"droid_name":"B2-RP","droid_color":"Beskar"},{"droid_name":"Snow Mouse","droid_color":"Beskar"}],"cost":{"credits":9000000000000.0,"nova":137.0}},"2-25":{"super_rebirth":2,"rebirth":25,"droids":[{"droid_name":"Mono-Wlkr","droid_color":"Beskar"},{"droid_name":"Tri-Tek","droid_color":"Gold"},{"droid_name":"Ric-1200","droid_color":"Base"}],"cost":{"credits":13500000000000.0,"nova":154.0}},"2-26":{"super_rebirth":2,"rebirth":26,"droids":[{"droid_name":"KX","droid_color":"Gold"},{"droid_name":"Drft-R","droid_color":"Gold"},{"droid_name":"IG","droid_color":"Rainbow"}],"cost":{"credits":21000000000000.0,"nova":172.0}},"2-27":{"super_rebirth":2,"rebirth":27,"droids":[{"droid_name":"Lep","droid_color":"Diamond"},{"droid_name":"Loadlifter","droid_color":"Rainbow"},{"droid_name":"Mo-Trak","droid_color":"Beskar"}],"cost":{"credits":32000000000000.0,"nova":191.0}},"3-1":{"super_rebirth":3,"rebirth":1,"droids":[{"droid_name":"Mouse","droid_color":"Default"},{"droid_name":"Pit","droid_color":"Default"},{"droid_name":"Gonk","droid_color":"Default"}],"cost":{"credits":150000.0,"nova":null}},"3-2":{"super_rebirth":3,"rebirth":2,"droids":[{"droid_name":"2BB","droid_color":"Default"},{"droid_name":"R3","droid_color":"Default"},{"droid_name":"Senate Hovercam","droid_color":"Default"}],"cost":{"credits":975000.0,"nova":null}},"3-3":{"super_rebirth":3,"rebirth":3,"droids":[{"droid_name":"R4","droid_color":"Default"},{"droid_name":"R5","droid_color":"Default"},{"droid_name":"R8","droid_color":"Default"}],"cost":{"credits":2950000.0,"nova":null}},"3-4":{"super_rebirth":3,"rebirth":4,"droids":[{"droid_name":"R9","droid_color":"Gold"},{"droid_name":"B1 Battle","droid_color":"Gold"},{"droid_name":"B1 Security","droid_color":"Gold"}],"cost":{"credits":5350000.0,"nova":null}},"3-5":{"super_rebirth":3,"rebirth":5,"droids":[{"droid_name":"2BB","droid_color":"Gold"},{"droid_name":"R3","droid_color":"Gold"},{"droid_name":"Senate Hovercam","droid_color":"Gold"}],"cost":{"credits":9850000.0,"nova":null}},"3-6":{"super_rebirth":3,"rebirth":6,"droids":[{"droid_name":"BDX Explorer","droid_color":"Diamond"},{"droid_name":"R4","droid_color":"Diamond"},{"droid_name":"R5","droid_color":"Diamond"}],"cost":{"credits":14500000.0,"nova":null}},"3-7":{"super_rebirth":3,"rebirth":7,"droids":[{"droid_name":"R8","droid_color":"Diamond"},{"droid_name":"R9","droid_color":"Diamond"},{"droid_name":"B1 Battle","droid_color":"Diamond"}],"cost":{"credits":36000000.0,"nova":null}},"3-8":{"super_rebirth":3,"rebirth":8,"droids":[{"droid_name":"B1 Security","droid_color":"Rainbow"},{"droid_name":"R3","droid_color":"Rainbow"},{"droid_name":"2BB","droid_color":"Rainbow"}],"cost":{"credits":89000000.0,"nova":null}},"3-9":{"super_rebirth":3,"rebirth":9,"droids":[{"droid_name":"BDX Explorer","droid_color":"Rainbow"},{"droid_name":"R4","droid_color":"Rainbow"},{"droid_name":"R5","droid_color":"Rainbow"}],"cost":{"credits":220000000.0,"nova":null}},"3-10":{"super_rebirth":3,"rebirth":10,"droids":[{"droid_name":"Trak-R","droid_color":"Default"},{"droid_name":"Ground Mech","droid_color":"Default"},{"droid_name":"Senate Hovercam","droid_color":"Default"}],"cost":{"credits":550000000.0,"nova":null}},"3-11":{"super_rebirth":3,"rebirth":11,"droids":[{"droid_name":"B2 Heavy","droid_color":"Default"},{"droid_name":"B2 Super","droid_color":"Default"},{"droid_name":"Util-Tec","droid_color":"Default"}],"cost":{"credits":1360000000.0,"nova":null}},"3-12":{"super_rebirth":3,"rebirth":12,"droids":[{"droid_name":"Trak-R","droid_color":"Gold"},{"droid_name":"Ground Mech","droid_color":"Gold"},{"droid_name":"Bal-Core","droid_color":"Rainbow"}],"cost":{"credits":3400000000.0,"nova":11.0}},"3-13":{"super_rebirth":3,"rebirth":13,"droids":[{"droid_name":"B2 Super","droid_color":"Rainbow"},{"droid_name":"Mecha Droid","droid_color":"Default"},{"droid_name":"Proto Roller","droid_color":"Default"}],"cost":{"credits":8450000000.0,"nova":16.0}},"3-14":{"super_rebirth":3,"rebirth":14,"droids":[{"droid_name":"B2 Heavy","droid_color":"Rainbow"},{"droid_name":"B2-RP","droid_color":"Gold"},{"droid_name":"R7","droid_color":"Gold"}],"cost":{"credits":21000000000.0,"nova":22.0}},"3-15":{"super_rebirth":3,"rebirth":15,"droids":[{"droid_name":"Strike-Orb","droid_color":"Rainbow"},{"droid_name":"BB9","droid_color":"Gold"},{"droid_name":"Proto Roller","droid_color":"Gold"}],"cost":{"credits":21000000000.0,"nova":29.0}},"3-16":{"super_rebirth":3,"rebirth":16,"droids":[{"droid_name":"B2-RP","droid_color":"Diamond"},{"droid_name":"Amp Walker","droid_color":"Rainbow"},{"droid_name":"Mecha Droid","droid_color":"Gold"}],"cost":{"credits":52000000000.0,"nova":37.0}},"3-17":{"super_rebirth":3,"rebirth":17,"droids":[{"droid_name":"Opti-Pod","droid_color":"Rainbow"},{"droid_name":"R7","droid_color":"Diamond"},{"droid_name":"Mono-Wlkr","droid_color":"Diamond"}],"cost":{"credits":130000000000.0,"nova":46.0}},"3-18":{"super_rebirth":3,"rebirth":18,"droids":[{"droid_name":"BB9","droid_color":"Diamond"},{"droid_name":"Proto Roller","droid_color":"Default"}],"cost":{"credits":325000000000.0,"nova":56.0}},"3-19":{"super_rebirth":3,"rebirth":19,"droids":[{"droid_name":"Mecha Droid","droid_color":"Diamond"},{"droid_name":"R7","droid_color":"Rainbow"},{"droid_name":"B2-RP","droid_color":"Rainbow"}],"cost":{"credits":810000000000.0,"nova":67.0}},"3-20":{"super_rebirth":3,"rebirth":20,"droids":[{"droid_name":"Mono-Wlkr","droid_color":"Rainbow"},{"droid_name":"Opti-Strk","droid_color":"Rainbow"},{"droid_name":"Cyclo-Grav","droid_color":"Rainbow"}],"cost":{"credits":2000000000000.0,"nova":79.0}},"3-21":{"super_rebirth":3,"rebirth":21,"droids":[{"droid_name":"B2 Super","droid_color":"Beskar"},{"droid_name":"Opti-Pod","droid_color":"Beskar"},{"droid_name":"R2","droid_color":"Beskar"}],"cost":{"credits":3000000000000.0,"nova":92.0}},"3-22":{"super_rebirth":3,"rebirth":22,"droids":[{"droid_name":"Gunrunner","droid_color":"Beskar"},{"droid_name":"Lng-Shot","droid_color":"Beskar"},{"droid_name":"B2-RP","droid_color":"Beskar"}],"cost":{"credits":4500000000000.0,"nova":106.0}},"3-23":{"super_rebirth":3,"rebirth":23,"droids":[{"droid_name":"Mono-Wlkr","droid_color":"Beskar"},{"droid_name":"Mecha Droid","droid_color":"Beskar"},{"droid_name":"Cyclo-Grav","droid_color":"Beskar"}],"cost":{"credits":6000000000000.0,"nova":121.0}},"3-24":{"super_rebirth":3,"rebirth":24,"droids":[{"droid_name":"BB9","droid_color":"Beskar"},{"droid_name":"B2-RP","droid_color":"Beskar"},{"droid_name":"Ric","droid_color":"Default"}],"cost":{"credits":9000000000000.0,"nova":137.0}},"3-25":{"super_rebirth":3,"rebirth":25,"droids":[{"droid_name":"Proto Roller","droid_color":"Beskar"},{"droid_name":"Loadlifter","droid_color":"Default"},{"droid_name":"Mo-Trak","droid_color":"Gold"}],"cost":{"credits":13500000000000.0,"nova":154.0}},"3-26":{"super_rebirth":3,"rebirth":26,"droids":[{"droid_name":"Lep","droid_color":"Gold"},{"droid_name":"Tri-Tek","droid_color":"Diamond"},{"droid_name":"Snow Mouse","droid_color":"Rainbow"}],"cost":{"credits":21000000000000.0,"nova":172.0}},"3-27":{"super_rebirth":3,"rebirth":27,"droids":[{"droid_name":"Ric-1200","droid_color":"Diamond"},{"droid_name":"IG","droid_color":"Rainbow"},{"droid_name":"Drft-R","droid_color":"Beskar"}],"cost":{"credits":32000000000000.0,"nova":191.0}},"4-1":{"super_rebirth":4,"rebirth":1,"droids":[{"droid_name":"ID10","droid_color":"Base"},{"droid_name":"Pit","droid_color":"Base"},{"droid_name":"DRK-1 Probe","droid_color":"Base"}],"cost":{"credits":150000.0,"nova":null}},"4-2":{"super_rebirth":4,"rebirth":2,"droids":[{"droid_name":"2BB","droid_color":"Base"},{"droid_name":"R3","droid_color":"Base"},{"droid_name":"Senate Hovercam","droid_color":"Base"}],"cost":{"credits":975000.0,"nova":null}},"4-3":{"super_rebirth":4,"rebirth":3,"droids":[{"droid_name":"R4","droid_color":"Base"},{"droid_name":"R5","droid_color":"Base"},{"droid_name":"R8","droid_color":"Gold"}],"cost":{"credits":2950000.0,"nova":null}},"4-4":{"super_rebirth":4,"rebirth":4,"droids":[{"droid_name":"R9","droid_color":"Gold"},{"droid_name":"B1 Battle","droid_color":"Gold"},{"droid_name":"B1 Security","droid_color":"Gold"}],"cost":{"credits":5350000.0,"nova":null}},"4-5":{"super_rebirth":4,"rebirth":5,"droids":[{"droid_name":"2BB","droid_color":"Gold"},{"droid_name":"R3","droid_color":"Gold"},{"droid_name":"Senate Hovercam","droid_color":"Gold"}],"cost":{"credits":9850000.0,"nova":null}},"4-6":{"super_rebirth":4,"rebirth":6,"droids":[{"droid_name":"BDX Explorer","droid_color":"Diamond"},{"droid_name":"R4","droid_color":"Diamond"},{"droid_name":"R5","droid_color":"Diamond"}],"cost":{"credits":14500000.0,"nova":null}},"4-7":{"super_rebirth":4,"rebirth":7,"droids":[{"droid_name":"R8","droid_color":"Diamond"},{"droid_name":"R9","droid_color":"Diamond"},{"droid_name":"B1 Battle","droid_color":"Diamond"}],"cost":{"credits":36000000.0,"nova":null}},"4-8":{"super_rebirth":4,"rebirth":8,"droids":[{"droid_name":"B1 Security","droid_color":"Rainbow"},{"droid_name":"R3","droid_color":"Rainbow"},{"droid_name":"2BB","droid_color":"Rainbow"}],"cost":{"credits":89000000.0,"nova":null}},"4-9":{"super_rebirth":4,"rebirth":9,"droids":[{"droid_name":"BDX Explorer","droid_color":"Rainbow"},{"droid_name":"R4","droid_color":"Rainbow"},{"droid_name":"R5","droid_color":"Rainbow"}],"cost":{"credits":220000000.0,"nova":null}},"4-10":{"super_rebirth":4,"rebirth":10,"droids":[{"droid_name":"Trak-R","droid_color":"Base"},{"droid_name":"Ground Mech","droid_color":"Base"},{"droid_name":"Senate Hovercam","droid_color":"Base"}],"cost":{"credits":550000000.0,"nova":null}},"4-11":{"super_rebirth":4,"rebirth":11,"droids":[{"droid_name":"B2 Heavy","droid_color":"Base"},{"droid_name":"B2 Super","droid_color":"Base"},{"droid_name":"Util-Tec","droid_color":"Base"}],"cost":{"credits":1360000000.0,"nova":null}},"4-12":{"super_rebirth":4,"rebirth":12,"droids":[{"droid_name":"Trak-R","droid_color":"Gold"},{"droid_name":"Ground Mech","droid_color":"Gold"},{"droid_name":"Bal-Core","droid_color":"Rainbow"}],"cost":{"credits":3400000000.0,"nova":11.0}},"4-13":{"super_rebirth":4,"rebirth":13,"droids":[{"droid_name":"B2 Super","droid_color":"Rainbow"},{"droid_name":"Mecha Droid","droid_color":"Base"},{"droid_name":"Proto Roller","droid_color":"Base"}],"cost":{"credits":8450000000.0,"nova":16.0}},"4-14":{"super_rebirth":4,"rebirth":14,"droids":[{"droid_name":"Bal-Core","droid_color":"Diamond"},{"droid_name":"Ground Mech","droid_color":"Diamond"},{"droid_name":"Trak-R","droid_color":"Rainbow"}],"cost":{"credits":21000000000.0,"nova":22.0}},"4-15":{"super_rebirth":4,"rebirth":15,"droids":[{"droid_name":"B2 Heavy","droid_color":"Diamond"},{"droid_name":"B2 Super","droid_color":"Rainbow"},{"droid_name":"B2-RP","droid_color":"Base"}],"cost":{"credits":21000000000.0,"nova":29.0}},"4-16":{"super_rebirth":4,"rebirth":16,"droids":[{"droid_name":"Util-Tec","droid_color":"Rainbow"},{"droid_name":"BB9","droid_color":"Base"},{"droid_name":"R7","droid_color":"Gold"}],"cost":{"credits":52000000000.0,"nova":37.0}},"4-17":{"super_rebirth":4,"rebirth":17,"droids":[{"droid_name":"Opti-Strk","droid_color":"Base"},{"droid_name":"Cyclo-Grav","droid_color":"Gold"},{"droid_name":"Mecha Droid","droid_color":"Gold"}],"cost":{"credits":130000000000.0,"nova":46.0}},"4-18":{"super_rebirth":4,"rebirth":18,"droids":[{"droid_name":"B2-RP","droid_color":"Gold"},{"droid_name":"BB9","droid_color":"Gold"},{"droid_name":"R7","droid_color":"Diamond"}],"cost":{"credits":325000000000.0,"nova":56.0}},"4-19":{"super_rebirth":4,"rebirth":19,"droids":[{"droid_name":"Mecha Droid","droid_color":"Diamond"},{"droid_name":"R7","droid_color":"Rainbow"},{"droid_name":"B2-RP","droid_color":"Rainbow"}],"cost":{"credits":810000000000.0,"nova":67.0}},"4-20":{"super_rebirth":4,"rebirth":20,"droids":[{"droid_name":"Mono-Wlkr","droid_color":"Rainbow"},{"droid_name":"Opti-Strk","droid_color":"Rainbow"},{"droid_name":"Cyclo-Grav","droid_color":"Rainbow"}],"cost":{"credits":2000000000000.0,"nova":79.0}},"4-21":{"super_rebirth":4,"rebirth":21,"droids":[{"droid_name":"Amp Walker","droid_color":"Beskar"},{"droid_name":"Ground Mech","droid_color":"Beskar"},{"droid_name":"Haul-R","droid_color":"Beskar"}],"cost":{"credits":3000000000000.0,"nova":92.0}},"4-22":{"super_rebirth":4,"rebirth":22,"droids":[{"droid_name":"Gunrunner","droid_color":"Beskar"},{"droid_name":"Strike-Orb","droid_color":"Beskar"},{"droid_name":"B2 Super","droid_color":"Beskar"}],"cost":{"credits":4500000000000.0,"nova":106.0}},"4-23":{"super_rebirth":4,"rebirth":23,"droids":[{"droid_name":"Mono-Wlkr","droid_color":"Beskar"},{"droid_name":"B2-RP","droid_color":"Beskar"},{"droid_name":"Cyclo-Grav","droid_color":"Beskar"}],"cost":{"credits":6000000000000.0,"nova":121.0}},"4-24":{"super_rebirth":4,"rebirth":24,"droids":[{"droid_name":"Mecha Droid","droid_color":"Beskar"},{"droid_name":"Proto Roller","droid_color":"Beskar"},{"droid_name":"Mo-Trak","droid_color":"Base"}],"cost":{"credits":9000000000000.0,"nova":137.0}},"4-25":{"super_rebirth":4,"rebirth":25,"droids":[{"droid_name":"Opti-Strk","droid_color":"Beskar"},{"droid_name":"Tri-Tek","droid_color":"Base"},{"droid_name":"Drft-R","droid_color":"Gold"}],"cost":{"credits":13500000000000.0,"nova":154.0}},"4-26":{"super_rebirth":4,"rebirth":26,"droids":[{"droid_name":"Cyclens","droid_color":"Gold"},{"droid_name":"Lap","droid_color":"Diamond"},{"droid_name":"Mo-Trak","droid_color":"Rainbow"}],"cost":{"credits":21000000000000.0,"nova":172.0}},"4-27":{"super_rebirth":4,"rebirth":27,"droids":[{"droid_name":"Ric-1200","droid_color":"Diamond"},{"droid_name":"Snow Mouse","droid_color":"Rainbow"},{"droid_name":"Loadlifter","droid_color":"Beskar"}],"cost":{"credits":32000000000000.0,"nova":191.0}}},"reference":{"droids":["2BB","A-LT","Amp Walker","ARG","B-U4D","B1 Battle","B1 Heavy","B1 Security","B2 Heavy","B2 Super","B2-RP","Bal-Core","BB","BB-Walker","BB9","BDX Explorer","CB","Cyclens","Cyclo-Grav","Drft-R","DRK-1 Probe","Gonk","Ground Mech","Gunrunner","Haul-R","HOV-R","ID10","IG","Imperial Probe","KX","Lap","Lep","Lng-Shot","LO","Loadlifter","Mecha Droid","Mo-Trak","Mono-Wlkr","Mouse","Nav-Ex","Opti-Pod","Opti-Strk","Orb Walker","Pit","Proto BB9","Proto Roller","R2","R3","R4","R5","R6","R7","R8","R9","Ric","Ric-1200","Roll-R","Sen-Tri","Senate Hovercam","Snow Mouse","Strike-Orb","Trak-R","Tri-Tek","Util-Tec","Vect-Arm"],"colors":["Default","Gold","Diamond","Rainbow","Beskar","Galactic"],"ranks":["Common","Rare","Epic","Legend","Mythic"],"super_cycles":[1,2,3,4],"rebirths":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27]},"cost_curve":{"0":{"credits":10000.0,"nova":null},"1":{"credits":150000.0,"nova":null},"2":{"credits":975000.0,"nova":null},"3":{"credits":2950000.0,"nova":null},"4":{"credits":5350000.0,"nova":null},"5":{"credits":9850000.0,"nova":null},"6":{"credits":14500000.0,"nova":null},"7":{"credits":36000000.0,"nova":null},"8":{"credits":89000000.0,"nova":null},"9":{"credits":220000000.0,"nova":null},"10":{"credits":550000000.0,"nova":null},"11":{"credits":1360000000.0,"nova":null},"12":{"credits":3400000000.0,"nova":11.0},"13":{"credits":8450000000.0,"nova":16.0},"14":{"credits":21000000000.0,"nova":22.0},"15":{"credits":21000000000.0,"nova":29.0},"16":{"credits":52000000000.0,"nova":37.0},"17":{"credits":130000000000.0,"nova":46.0},"18":{"credits":325000000000.0,"nova":56.0},"19":{"credits":810000000000.0,"nova":67.0},"20":{"credits":2000000000000.0,"nova":79.0},"21":{"credits":3000000000000.0,"nova":92.0},"22":{"credits":4500000000000.0,"nova":106.0},"23":{"credits":6000000000000.0,"nova":121.0},"24":{"credits":9000000000000.0,"nova":137.0},"25":{"credits":13500000000000.0,"nova":154.0},"26":{"credits":21000000000000.0,"nova":172.0},"27":{"credits":32000000000000.0,"nova":191.0}},"quarantined":[{"super_rebirth":2,"rebirth":18,"droid_name":"Util-Tec","droid_color":"Base (Incorrect)"},{"super_rebirth":3,"rebirth":18,"droid_name":"Util-Tec","droid_color":"Default (Incorrect)"}]}</script>
+<script>
+"use strict";
+
+let DATA = null;
+
+// ---- Color helpers ----
+const COLOR_CLASS = {
+  'Base': 'color-base', 'Default': 'color-default', 'Gold': 'color-gold',
+  'Diamond': 'color-diamond', 'Rainbow': 'color-rainbow', 'Beskar': 'color-beskar',
+  'Galactic': 'color-galactic'
+};
+function colorClass(c){ return COLOR_CLASS[c] || 'color-default'; }
+function swatch(c){ return `<span class="swatch ${colorClass(c)}" title="${c}"></span>`; }
+function fmt(n){ return n==null ? '\u2014' : n.toLocaleString('en-US'); }
+
+// ---- Visible error banner (only shown if data cannot be loaded at all) ----
+function showError(msg){
+  let b = document.getElementById('error-banner');
+  if (!b){
+    b = document.createElement('div');
+    b.id = 'error-banner';
+    b.style.cssText = 'position:sticky;top:0;z-index:50;background:#7d1f1f;color:#ffd7d7;'
+      + 'border-bottom:1px solid #b33434;padding:10px 16px;font-size:13px;line-height:1.4;';
+    document.body.prepend(b);
+  }
+  b.textContent = msg;
+}
+
+// ---- Live data loader (task t_b8b899c3) ----
+// Prefers the live DB-backed API so admin panel edits show up automatically.
+// The page is served same-origin at http://localhost:8787/droidtycoon, where
+// GET /api/stages returns the full (live) data model in one call. When the
+// page is opened directly via file:// (no server), the relative API fetch
+// fails, so we fall back to the inlined #data JSON blob (the static snapshot
+// built by make_panel.py). This keeps the file usable both ways.
+async function fetchLive(){
+  const res = await fetch('/api/stages', { cache:'no-store' });
+  if (!res.ok) throw new Error('Live API returned HTTP ' + res.status);
+  const json = await res.json();
+  if (!json || !json.stages) throw new Error('Live API response missing stages.');
+  return json;
+}
+async function loadInline(){
+  const el = document.getElementById('data');
+  const raw = el ? el.textContent.trim() : '';
+  // Accept an inline blob only if it parses to an object that actually has
+  // stages (the build placeholder / malformed blob will fail this check).
+  if (raw){
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.stages) return parsed;
+    } catch (e) { /* not valid JSON -> fall through */ }
+  }
+  throw new Error('No inlined data available (run "python make_panel.py" to rebuild).');
+}
+async function loadData(){
+  // Try live first (works when served over http://localhost:8787).
+  try { return await fetchLive(); }
+  catch (e) { /* live unavailable (e.g. opened via file://) -> use inline */ }
+  return await loadInline();
+}
+
+// ---- Shared state ----
+let SR_MIN, SR_MAX, RB_MIN, RB_MAX, curSR, curRB, selected = null, selectedDroid = null;
+
+function stageKey(s,r){ return s+'-'+r; }
+function getStage(s,r){ return DATA.stages[stageKey(s,r)]; }
+
+// ---- Totals ----
+function renderTotals(){
+  const t = DATA.totals;
+  const items = [
+    ['Stages', t.stages],
+    ['Super Cycles', t.super_cycles],
+    ['Rebirths / Cycle', t.rebirths_per_cycle],
+    ['Droids / Stage', DATA.droids_per_stage],
+    ['Distinct Droids', t.distinct_droid_names],
+    ['Total Requirements', t.droids_total],
+  ];
+  document.getElementById('totals').innerHTML = items.map(
+    ([k,v]) => `<div class="t"><b>${v}</b><span>${k}</span></div>`
+  ).join('');
+}
+
+// ---- Cycle grid ----
+function renderCycles(){
+  const wrap = document.getElementById('cycles');
+  wrap.innerHTML = '';
+  for (let s=SR_MIN; s<=SR_MAX; s++){
+    const col = document.createElement('div'); col.className='cycle';
+    col.innerHTML = `<h3>Super Rebirth ${s}</h3>`;
+    const grid = document.createElement('div'); grid.className='stagegrid';
+    for (let r=RB_MIN; r<=RB_MAX; r++){
+      const st = getStage(s,r);
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      if (s < curSR || (s===curSR && r < curRB)) cell.classList.add('past');
+      if (s===curSR && r===curRB) cell.classList.add('current');
+      if (selected===stageKey(s,r)) cell.classList.add('selected');
+      if (selectedDroid && st.droids.some(d => d.droid_name === selectedDroid)) cell.classList.add('droid-match');
+      const chips = st.droids.map(d => swatch(d.droid_color)).join('');
+      cell.innerHTML = `<div class="rb">R${r}</div><div class="chips">${chips}</div>`;
+      cell.onclick = () => { selected = stageKey(s,r); renderDetail(s,r); renderCycles(); };
+      grid.appendChild(cell);
+    }
+    col.appendChild(grid);
+    wrap.appendChild(col);
+  }
+  document.getElementById('progress-note').textContent =
+    `You are at SR ${curSR}, R ${curRB}. Past stages are dimmed; the green outline is your current stage.`;
+}
+
+// ---- Detail ----
+function renderDetail(s,r){
+  const st = getStage(s,r);
+  if (!st){ document.getElementById('detail').innerHTML='<div class="note">No data for this stage.</div>'; return; }
+  const rows = st.droids.map(d =>
+    `<div class="detail-droid"><span class="name">${d.droid_name}</span>${swatch(d.droid_color)}<span class="color-tag">${d.droid_color}</span></div>`
+  ).join('');
+  const cost = st.cost || {};
+  const costHtml = `<div class="cost">Rebirth cost \u2014 Credits: <b>${fmt(cost.credits)}</b></div><div class="cost">Nova Crystals Gained: <b>${fmt(cost.nova)}</b></div>`;
+  document.getElementById('detail').innerHTML =
+    `<div class="note" style="margin-bottom:6px">Super Rebirth <b>${s}</b> \u00b7 Rebirth <b>${r}</b> \u2014 needs ${st.droids.length} droids:</div>${rows}${costHtml}`;
+}
+
+// ---- Upcoming ----
+function nextStage(s,r){
+  if (r < RB_MAX) return {s:s, r:r+1};
+  return {s:s+1, r:RB_MIN};
+}
+function renderUpcoming(){
+  // Show every remaining stage of the current super rebirth cycle (no count limit).
+  // When a droid is selected, only stages requiring that droid are listed.
+  const out = [];
+  let s=curSR, r=curRB;
+  ({s,r} = nextStage(s,r));
+  while (s === curSR && s<=SR_MAX){
+    const st = getStage(s,r);
+    if (st){
+      const stDroids = selectedDroid
+        ? st.droids.filter(d => d.droid_name === selectedDroid)
+        : st.droids;
+      if (stDroids.length){
+        const chips = stDroids.map(d => swatch(d.droid_color)).join('');
+        const names = stDroids.map(d => d.droid_name).join(', ');
+        out.push(`<div class="upcoming-item"><span class="stage-id">SR${s} R${r}</span>${chips}<span style="font-size:12px">${names}</span></div>`);
+      }
+    }
+    ({s,r} = nextStage(s,r));
+  }
+  document.getElementById('upcoming').innerHTML = out.join('') ||
+    (selectedDroid
+      ? `<div class="note">${selectedDroid} is not required in any remaining stage of Super Rebirth ${curSR}.</div>`
+      : '<div class="note">No upcoming stages remaining in this super rebirth cycle.</div>');
+}
+
+// ---- Checklist (distinct droids across all stages) ----
+function renderChecklist(){
+  const counts = {};
+  for (const key in DATA.stages){
+    const st = DATA.stages[key];
+    for (const d of st.droids){
+      if (!counts[d.droid_name]) counts[d.droid_name] = {stages:new Set(), colors:new Set()};
+      counts[d.droid_name].stages.add(key);
+      counts[d.droid_name].colors.add(d.droid_color);
+    }
+  }
+  const names = Object.keys(counts).sort();
+  const wrap = document.getElementById('checklist');
+  wrap.innerHTML = names.map(name => {
+    const c = counts[name];
+    const cols = [...c.colors].map(swatch).join('');
+    return `<div class="item"><input type="checkbox" id="cb-${name}"><label for="cb-${name}">${name}</label><span class="count">${c.stages.size} stages ${cols}</span></div>`;
+  }).join('');
+  document.getElementById('checklist-note').textContent =
+    `${names.length} distinct droids required across all ${DATA.totals.stages} stages. Tick off what you own.`;
+}
+
+// ---- Legend + quarantine ----
+function renderLegend(){
+  const colors = DATA.reference.colors;
+  document.getElementById('legend').innerHTML = colors.map(c =>
+    `<div class="item">${swatch(c)}<span>${c}</span></div>`
+  ).join('');
+  const q = DATA.quarantined || [];
+  if (q.length){
+    const list = q.map(x => `SR${x.super_rebirth} R${x.rebirth}: ${x.droid_name} (${x.droid_color})`).join(' \u00b7 ');
+    document.getElementById('quarantine').textContent =
+      `Quarantined data-error rows (excluded): ${list}`;
+  }
+}
+
+// ---- Droid necessity (ported from webui/super_rebirth_cycle.js, task t_b5c5e75a) ----
+// Pure: given the requirement rows for one super cycle plus the player's current
+// (superRebirth, rebirth) position, decide whether the droid is STILL needed
+// for remaining steps. `needed` => keep/buy; !needed => safe to sell/skip.
+function computeDroidNecessity(droidId, currentStage, cycleRequirements){
+  if (typeof droidId !== 'string' || !droidId.trim())
+    throw new Error('droidId must be a non-empty string.');
+  if (!currentStage || typeof currentStage.superRebirth !== 'number' ||
+      typeof currentStage.rebirth !== 'number')
+    throw new Error('currentStage must be { superRebirth, rebirth }.');
+  const id = droidId.trim().toLowerCase();
+  const { superRebirth, rebirth: currentR } = currentStage;
+  const matches = (cycleRequirements || [])
+    .filter(r => r.superRebirth === superRebirth &&
+                 (r.droidName || '').toLowerCase() === id)
+    .map(r => ({ superRebirth: r.superRebirth, rebirth: r.rebirth, color: r.droidColor }));
+  const currentStageReq = matches.find(m => m.rebirth === currentR) || null;
+  const remainingStages = matches.filter(m => m.rebirth > currentR);
+  const clearedStages = matches.filter(m => m.rebirth < currentR);
+  const needed = currentStageReq !== null || remainingStages.length > 0;
+  return {
+    needed,
+    superRebirth,
+    currentRebirth: currentR,
+    currentStage: currentStageReq,
+    remainingStages,
+    remainingColors: [...new Set(remainingStages.map(s => s.color))],
+    clearedStages,
+  };
+}
+
+// Build the cycle-requirement rows for one super cycle from the inline DATA model.
+function getCycleRequirements(superRebirth){
+  const out = [];
+  for (const key in DATA.stages){
+    const st = DATA.stages[key];
+    if (st.super_rebirth !== superRebirth) continue;
+    for (const d of st.droids)
+      out.push({ superRebirth, rebirth: st.rebirth, droidName: d.droid_name, droidColor: d.droid_color });
+  }
+  return out;
+}
+
+// ---- Droid selection readout + necessity verdict (task t_e9543457) ----
+function renderDroidUsage(){
+  const el = document.getElementById('droid-usage');
+  if (!el) return;
+  if (!selectedDroid){ el.innerHTML = ''; return; }
+
+  // 1) Everywhere the droid is used across all stages.
+  const hits = [];
+  for (const key in DATA.stages){
+    const st = DATA.stages[key];
+    for (const d of st.droids){
+      if (d.droid_name === selectedDroid) hits.push({s: st.super_rebirth, r: st.rebirth, c: d.droid_color});
+    }
+  }
+
+  // 2) Necessity within the currently-selected super cycle / stage.
+  const necessity = computeDroidNecessity(selectedDroid,
+    { superRebirth: curSR, rebirth: curRB },
+    getCycleRequirements(curSR));
+  const needed = necessity.needed;
+
+  const verdict = needed
+    ? `<span class="verdict yes">Still needed — keep / do not sell</span>`
+    : `<span class="verdict no">Safe to sell / skip</span>`;
+
+  // Remaining-stage detail.
+  let detail = '';
+  const rem = necessity.remainingStages || [];
+  if (rem.length){
+    detail = `<div class="nec-sub">Still required in these upcoming rebirths of Super Rebirth ${curSR}:</div>`
+      + rem.map(s =>
+          `<div class="detail-droid"><span class="swatch ${colorClass(s.color)}"></span>`
+        + `<span class="name">R${s.rebirth}</span><span class="color-tag">${s.color}</span></div>`
+        ).join('');
+  } else if (needed && necessity.currentStage){
+    detail = `<div class="upcoming-item" style="border:none"><span class="swatch ${colorClass(necessity.currentStage.color)}"></span>`
+      + `<span style="font-size:12px">Required right now at R${necessity.currentStage.rebirth} (${necessity.currentStage.color}).</span></div>`;
+  } else {
+    detail = `<div class="nec-sub">Not needed for any remaining stage in Super Rebirth ${curSR}.</div>`;
+  }
+  const cleared = (necessity.clearedStages || []).length;
+  const clearedNote = cleared
+    ? `<div class="nec-sub" style="margin-top:8px">Already satisfied at ${cleared} earlier stage(s) in this cycle.</div>`
+    : '';
+
+  const everywhere = hits.length
+    ? `<div class="nec-sub">Also appears in ${hits.length} stage(s) overall (across all super cycles): `
+      + hits.map(h => `SR${h.s} R${h.r}`).join(' · ') + `</div>`
+    : `<div class="nec-sub">Not used in any stage of the data set.</div>`;
+
+  el.innerHTML =
+    `<div class="necessity-box">`
+    + `<div class="nec-head">Sell / keep check (from your current SR ${curSR}, R ${curRB})</div>`
+    + `<div class="nec-verdict">${verdict} <span class="nec-droid">${selectedDroid}</span></div>`
+    + detail + clearedNote + everywhere
+    + `</div>`;
+}
+
+// ---- Wire up controls ----
+function wireUp(srSel, rbSel){
+  // Selecting a Super Rebirth or Rebirth from the dropdowns auto-populates the
+  // Stage Detail section exactly as if the matching stage cell had been clicked.
+  srSel.onchange = () => { curSR = +srSel.value; selected = stageKey(curSR, curRB); renderCycles(); renderDetail(curSR, curRB); renderUpcoming(); renderDroidUsage(); };
+  rbSel.onchange = () => { curRB = +rbSel.value; selected = stageKey(curSR, curRB); renderCycles(); renderDetail(curSR, curRB); renderUpcoming(); renderDroidUsage(); };
+}
+
+// ---- Live refresh (task t_b8b899c3) ----
+// Polls /api/stages on an interval and also re-fetches whenever the tab
+// becomes visible, so admin-panel DB edits appear on the page automatically
+// without a manual reload.
+const LIVE_POLL_MS = 10000;     // background auto-refresh cadence
+let liveTimer = null;
+let liveRefreshing = false;
+
+function setLiveStatus(state, text){
+  const box = document.getElementById('live-status');
+  if (!box) return;
+  box.classList.remove('live', 'error');
+  if (state) box.classList.add(state);
+  const t = document.getElementById('live-text');
+  if (t) t.textContent = text;
+}
+
+async function refreshLive(){
+  if (liveRefreshing) return;
+  liveRefreshing = true;
+  const btn = document.getElementById('live-refresh');
+  if (btn) { btn.disabled = true; btn.textContent = '↻'; }
+  const txt = document.getElementById('live-text');
+  if (txt) txt.innerHTML = '<span class="spin"></span> Fetching…';
+  try {
+    const data = await fetchLive();
+    const isSameData = DATA && DATA.stages && JSON.stringify(Object.keys(data.stages).sort()) === JSON.stringify(Object.keys(DATA.stages).sort()) && JSON.stringify(data) === JSON.stringify(DATA);
+    DATA = data;
+    // Re-derive ranges in case the DB's super/rebirth cycle lists changed.
+    SR_MIN = DATA.super_cycle_range[0]; SR_MAX = DATA.super_cycle_range[1];
+    RB_MIN = DATA.rebirth_range[0];     RB_MAX = DATA.rebirth_range[1];
+    // Preserve the user's current selection + droid filter across refresh.
+    if (curSR == null || curSR < SR_MIN || curSR > SR_MAX) curSR = SR_MIN;
+    if (curRB == null || curRB < RB_MIN || curRB > RB_MAX) curRB = RB_MIN;
+    selected = stageKey(curSR, curRB);
+    // Rebuild the dropdown options (new droid names may exist after an edit).
+    rebuildControls();
+    renderTotals();
+    renderLegend();
+    renderCycles();
+    renderDetail(curSR, curRB);
+    renderUpcoming();
+    renderChecklist();
+    renderDroidUsage();
+    const now = new Date();
+    const stamp = now.toLocaleTimeString('en-US');
+    setLiveStatus('live', 'Live · updated ' + stamp + (isSameData ? '' : ' · data changed'));
+  } catch (e) {
+    // Live fetch failed but we already have data on screen: keep showing it
+    // and surface the error in the status pill (don't nuke the page).
+    setLiveStatus('error', 'Live sync failed: ' + e.message + (DATA ? ' (showing last data)' : ''));
+  } finally {
+    liveRefreshing = false;
+    if (btn) { btn.disabled = false; btn.textContent = 'Refresh'; }
+  }
+}
+
+function rebuildControls(){
+  const srSel = document.getElementById('cur-sr');
+  const rbSel = document.getElementById('cur-rb');
+  const droidSel = document.getElementById('droid-sel');
+  if (!srSel || !rbSel || !droidSel) return;
+  // Rebuild SR / RB option lists.
+  srSel.innerHTML = '';
+  for (let s=SR_MIN; s<=SR_MAX; s++) srSel.add(new Option('SR '+s, s));
+  rbSel.innerHTML = '';
+  for (let r=RB_MIN; r<=RB_MAX; r++) rbSel.add(new Option('R '+r, r));
+  // Rebuild droid list, preserving the current selection.
+  const prev = droidSel.value;
+  droidSel.innerHTML = '<option value="">— Select a droid —</option>';
+  (DATA.reference.droids || []).forEach(name => droidSel.add(new Option(name, name)));
+  droidSel.value = (DATA.reference.droids || []).includes(prev) ? prev : '';
+  selectedDroid = droidSel.value || null;
+  srSel.value = curSR; rbSel.value = curRB;
+}
+
+// ---- Bootstrap (runs after first data load) ----
+async function boot(){
+  DATA = await loadData();
+  SR_MIN = DATA.super_cycle_range[0]; SR_MAX = DATA.super_cycle_range[1];
+  RB_MIN = DATA.rebirth_range[0];     RB_MAX = DATA.rebirth_range[1];
+  selected = null;
+
+  const srSel = document.getElementById('cur-sr');
+  const rbSel = document.getElementById('cur-rb');
+  const droidSel = document.getElementById('droid-sel');
+  (DATA.reference.droids || []).forEach(name => droidSel.add(new Option(name, name)));
+  droidSel.onchange = () => { selectedDroid = droidSel.value || null; renderCycles(); renderUpcoming(); renderDroidUsage(); };
+  for (let s=SR_MIN; s<=SR_MAX; s++) srSel.add(new Option('SR '+s, s));
+  for (let r=RB_MIN; r<=RB_MAX; r++) rbSel.add(new Option('R '+r, r));
+  curSR = SR_MIN; curRB = RB_MIN;
+  srSel.value = curSR; rbSel.value = curRB;
+
+  renderTotals();
+  renderLegend();
+  wireUp(srSel, rbSel);
+
+  selected = stageKey(curSR, curRB);
+  renderCycles();
+  renderDetail(curSR, curRB);
+  renderUpcoming();
+  renderChecklist();
+  renderDroidUsage();
+
+  // Wire the manual refresh button + start live sync.
+  const btn = document.getElementById('live-refresh');
+  if (btn) btn.onclick = refreshLive;
+  // If we loaded inline data (file://), there's no live server to poll.
+  let usingLive = false;
+  try { usingLive = !!(await fetchLive()); } catch (e) { usingLive = false; }
+  if (usingLive) {
+    setLiveStatus('live', 'Live · loaded');
+    liveTimer = setInterval(() => { if (!document.hidden) refreshLive(); }, LIVE_POLL_MS);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) refreshLive();
+    });
+  } else {
+    setLiveStatus(null, 'Static snapshot (served from file — open via http://localhost:8787/droidtycoon for live updates)');
+  }
+}
+
+boot().catch(err => showError(
+  'Failed to load Needed Droids data: ' + err.message +
+  '  → If opening this file directly, serve it first (e.g. "python -m http.server" from the DroidTycoon folder) so data/rebirth_data.json can be fetched,' +
+  ' or run "python make_panel.py" to inline the data into index.html.'
+));
+</script>
+</body>
+</html>
