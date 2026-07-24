@@ -4,6 +4,9 @@ A self-contained panel that shows which droids are required for each rebirth
 stage of the Droid Tycoon grind, built from the project's two workbooks
 (`Driod Tycoon Rebirth.xlsx` + `Droid Tycoon Stats.xlsx`).
 
+## Image
+![Screenshot](https://github.com/BradleyStites/DroidTycoonDroidTrackerWebApp/blob/main/Screenshot.png "Screenshot")
+
 ## Open it
 Double-click **`index.html`** (or open it in any browser). No server needed —
 the data is inlined into the page.
