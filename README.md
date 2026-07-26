@@ -49,5 +49,16 @@ Each stage key `(Super Rebirth 1–4, Rebirth 1–27)` requires exactly 3 droids
 1-based counter (+1 per stage, wraps to 1 at 27); Super Rebirth is the outer
 counter (+1 when Rebirth wraps). Costs are keyed per rebirth only.
 
+## How to Operate
+Navigate to the webui folder in the terminal and run: `node server.js` That 
+will populate a local web server. Make sure to leave the terminal running 
+in the background and navigate your browser to the URL designated 
+in the termal. The default is URL is the admin panel, to access the droid
+tracker - navigate to `{Provided URL}\droidtracker` 
+(ex: [localhost://](http://localhost:8787/droidtycoon) in my case).
+
+
+
+
 ## Future Improvements
 Future updates will integrate the droid checklist with the upcoming droids section, enabling users to mark off collected droids. This functionality will automatically filter the list based on color and completion status, thereby optimizing screen space and streamlining data presentation.
