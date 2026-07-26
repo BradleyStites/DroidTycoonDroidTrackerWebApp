@@ -4,7 +4,9 @@ A self-contained panel that shows which droids are required for each rebirth
 stage of the Droid Tycoon grind, built from the project's two workbooks
 (`Driod Tycoon Rebirth.xlsx` + `Droid Tycoon Stats.xlsx`). The original workbooks 
 or spreadsheets can be found on my google drive, just make a copy if you
-prefer a simpler method of tracking.
+prefer a simpler method of tracking. When making this I didn't verify everything
+100%, but there is an admin panel for adjusting if droids aren't 100% accurate. I would
+suspect most issues will be with color of the droid - not necessarily droid name.
 
 https://docs.google.com/spreadsheets/d/1us4tKuFXJ9LJVVsu1ZOyyu-ENkWXz3zUGQ-jHMCNpQc/edit?usp=sharing
 
