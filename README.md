@@ -2,13 +2,79 @@
 
 A self-contained panel that shows which droids are required for each rebirth
 stage of the Droid Tycoon grind, built from the project's two workbooks
-(`Driod Tycoon Rebirth.xlsx` + `Droid Tycoon Stats.xlsx`). The original workbooks 
-or spreadsheets can be found on my google drive, just make a copy if you
-prefer a simpler method of tracking. When making this I didn't verify everything
-100%, but there is an admin panel for adjusting if droids aren't 100% accurate. I would
-suspect most issues will be with color of the droid - not necessarily droid name.
+(`Driod Tycoon Rebirth.xlsx` + `Droid Tycoon Stats.xlsx`).
 
 https://docs.google.com/spreadsheets/d/1us4tKuFXJ9LJVVsu1ZOyyu-ENkWXz3zUGQ-jHMCNpQc/edit?usp=sharing
+
+## Installation
+
+### Prerequisites
+- **Operating system:** Windows 10+, macOS, or Linux. No OS-specific steps are required.
+- **Python 3.8+** — used by the data-build scripts (`build_data.py`, `make_panel.py`, `build_db.py`). Check with:
+  ```bash
+  python --version
+  ```
+- **`openpyxl`** (Python library) — required only if you regenerate the data/DB from the source `.xlsx` workbooks. Install once with:
+  ```bash
+  pip install openpyxl
+  ```
+  (Use `pip3` if `pip` is not on your PATH.)
+- **Node.js 22.5+** — required only for the live web UI server (`webui/server.js`). It uses Node's built-in `node:sqlite` module, so **no `npm install` is needed**. Check with:
+  ```bash
+  node --version
+  ```
+
+> Note: the shippable `index.html` already has its data inlined, and
+> `webui/droid_tycoon.db` is committed, so a brand-new user can run the app
+> immediately without installing anything. The steps above are only needed to
+> edit the data pipeline or run the live server.
+
+### Getting the code
+Clone or download this repository, then open a terminal in the project root:
+```bash
+cd DroidTycoon
+```
+(On Windows you can also use Git Bash, PowerShell, or the normal Command Prompt.)
+
+## Running the Application
+
+There are two ways to use the tracker — pick whichever you need.
+
+### Option A — Open the static panel (no setup)
+The tracker is a self-contained HTML file; just open it in any browser:
+- **Windows:** double-click `index.html`, or run `start index.html` from the
+  project root.
+- **macOS/Linux:** open `index.html` in your browser, or run `xdg-open index.html`.
+
+No server, Python, or Node is required. The data is inlined into the page.
+
+### Option B — Run the live web UI server
+The `webui/` folder contains a Node.js server that serves the admin panel and
+the droid tracker, backed live by `webui/droid_tycoon.db`.
+
+1. Open a terminal and enter the server folder:
+   ```bash
+   cd webui
+   ```
+2. Start the server:
+   ```bash
+   node server.js
+   ```
+   Leave this terminal running in the background. On startup it prints:
+   `Droid Tycoon UI running at http://localhost:8787`
+3. Open the following URLs in your browser:
+   - **Admin panel:** http://localhost:8787/
+   - **Droid tracker:** http://localhost:8787/droidtycoon
+
+**Stopping the server:** press `Ctrl+C` in that terminal.
+
+#### Optional environment configuration
+- **Change the port** (default `8787`):
+  ```bash
+  PORT=3000 node server.js      # macOS/Linux
+  set PORT=3000 && node server.js   # Windows cmd
+  $env:PORT=3000; node server.js    # Windows PowerShell
+  ```
 
 ## Image
 - Main Tracker Dashboard
